@@ -1,0 +1,83 @@
+server:
+  port: ${PORT:8090}
+
+spring:
+  application:
+    name: llm-service
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+
+# --- Service Discovery (Eureka) ---
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+
+# --- Your own service-level settings (optional but useful) ---
+melisa:
+  ai:
+    claude:
+      system: "Faqat o'zbek tilida va faqat LOTIN yozuvida javob ber. Ruscha yoki inglizcha so'z ishlatma. Qisqa va aniq yoz."
+      model: "claude-sonnet-4-5"
+      max-output-tokens: 1024
+      max-input-chars: 12000
+      temperature: 0.2
+#      top-p: 0.9
+
+# =========================
+# DEV profile: local Ollama
+# =========================
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  ai:
+    model:
+      chat: anthropic  # enables Anthropic ChatModel auto-config
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY: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}
+      chat:
+        options:
+          # You can set: claude-sonnet-4-5 / claude-haiku-4-5 / claude-opus-4-5
+          model: ${ANTHROPIC_MODEL:claude-sonnet-4-5}
+          max-tokens: ${ANTHROPIC_MAX_TOKENS:1024}
+          temperature: ${ANTHROPIC_TEMPERATURE:0.2}
+#          top-p: ${ANTHROPIC_TOP_P:0.9}
+    #    model:
+    #      chat: ollama  # enables Ollama ChatModel auto-config
+    #    ollama:
+    #      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}  # NOTE: no /v1 here
+    #      chat:
+    #        options:
+    #          model: ${OLLAMA_MODEL:llama3.1:8b}
+    #          temperature: ${OLLAMA_TEMPERATURE:0.2}
+    #          top-p: ${OLLAMA_TOP_P:0.9}
+    #          top-k: ${OLLAMA_TOP_K:40}
+    #          num-ctx: ${OLLAMA_NUM_CTX:4096}
+    #          num-predict: ${OLLAMA_NUM_PREDICT:512}
+
+    # ==================================
+    # PROD profile: Anthropic (Claude)
+    # ==================================
+    #
+    #  spring:
+    #    config:
+    #      activate:
+    #        on-profile: prod
