@@ -2,12 +2,10 @@ package uz.melisa.config;
 
 import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableConfigurationProperties(ClaudeProperties.class)
 public class ClaudeAiConfig {
 
     @Bean

@@ -1,8 +1,13 @@
 package uz.melisa.dto.claude;
 
-import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public record ClaudeChatRequest(
-        @NotBlank String message,
-        Integer maxOutputTokens
-) {}
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class ClaudeChatRequest {
+    private String message;
+    private Integer maxOutputTokens;
+}

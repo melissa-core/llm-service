@@ -1,7 +1,6 @@
 package uz.melisa.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 import uz.melisa.config.ClaudeProperties;

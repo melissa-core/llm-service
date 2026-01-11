@@ -18,9 +18,9 @@ public class ClaudeChatController {
 
     private final ClaudeChatService service;
 
-    @PostMapping(value = "/chat", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = "/free-chat", produces = MediaType.APPLICATION_JSON_VALUE)
     public ClaudeChatResponse chat(@Valid @RequestBody ClaudeChatRequest request) {
-        String answer = service.chatUzbek(request.message());
+        String answer = service.chatUzbek(request.getMessage());
         return new ClaudeChatResponse(answer);
     }
 }
