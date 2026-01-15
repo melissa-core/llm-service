@@ -29,6 +29,14 @@ public class PrincipalAuthFilter extends OncePerRequestFilter {
     private final ApplicationProperties props;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs")
+                || path.equals("/swagger-ui.html");
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
 
@@ -72,4 +80,3 @@ public class PrincipalAuthFilter extends OncePerRequestFilter {
         }
     }
 }
-
