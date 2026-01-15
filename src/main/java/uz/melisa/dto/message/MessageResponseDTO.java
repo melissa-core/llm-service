@@ -1,4 +1,4 @@
-package uz.melisa.dto.claude;
+package uz.melisa.dto.message;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ClaudeChatRequest {
+public class MessageResponseDTO {
+
     private String message;
+    private Long chatId;
 }

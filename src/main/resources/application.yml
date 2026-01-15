@@ -5,6 +5,15 @@ spring:
   application:
     name: llm-service
 
+  datasource:
+    url: jdbc:postgresql://localhost:5432/llm_db
+    username: postgres
+    password: root
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
 management:
   endpoints:
     web:
@@ -18,6 +27,10 @@ logging:
   level:
     root: INFO
     org.springframework.web: INFO
+
+application:
+  downstream:
+    hmacSecret: ${HMAC_SECRET:change-me-downstream-shared-secret}
 
 # --- Service Discovery (Eureka) ---
 eureka:
@@ -59,7 +72,7 @@ spring:
           model: ${ANTHROPIC_MODEL:claude-sonnet-4-5}
           max-tokens: ${ANTHROPIC_MAX_TOKENS:1024}
           temperature: ${ANTHROPIC_TEMPERATURE:0.2}
-#          top-p: ${ANTHROPIC_TOP_P:0.9}
+    #          top-p: ${ANTHROPIC_TOP_P:0.9}
     #    model:
     #      chat: ollama  # enables Ollama ChatModel auto-config
     #    ollama:

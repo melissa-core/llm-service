@@ -2,6 +2,7 @@ package uz.melisa.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,6 +14,7 @@ import uz.melisa.service.ClaudeChatService;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 @RequestMapping("/api/claude")
 public class ClaudeChatController {
 
@@ -20,6 +22,7 @@ public class ClaudeChatController {
 
     @PostMapping(value = "/free-chat", produces = MediaType.APPLICATION_JSON_VALUE)
     public ClaudeChatResponse chat(@Valid @RequestBody ClaudeChatRequest request) {
+        log.info("REST request to free chat : {}", request);
         String answer = service.chatUzbek(request.getMessage());
         return new ClaudeChatResponse(answer);
     }

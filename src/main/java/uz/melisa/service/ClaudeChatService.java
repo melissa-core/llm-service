@@ -21,7 +21,6 @@ public class ClaudeChatService {
                 .content();
     }
 
-
     private static String enforceMaxChars(String text, int maxChars) {
         if (text == null) return "";
         String t = text.trim();

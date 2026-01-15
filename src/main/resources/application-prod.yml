@@ -5,6 +5,15 @@ spring:
   application:
     name: llm-service
 
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
 management:
   endpoints:
     web:
@@ -28,6 +37,10 @@ eureka:
     register-with-eureka: true
   instance:
     prefer-ip-address: true
+
+application:
+  downstream:
+    hmacSecret: ${HMAC_SECRET}
 
 # --- Your own service-level settings (optional but useful) ---
 melisa:
@@ -59,7 +72,7 @@ spring:
           model: ${ANTHROPIC_MODEL}
           max-tokens: ${ANTHROPIC_MAX_TOKENS}
           temperature: ${ANTHROPIC_TEMPERATURE}
-#          top-p: ${ANTHROPIC_TOP_P:0.9}
+    #          top-p: ${ANTHROPIC_TOP_P:0.9}
     #    model:
     #      chat: ollama  # enables Ollama ChatModel auto-config
     #    ollama:
