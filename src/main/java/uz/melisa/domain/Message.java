@@ -3,6 +3,7 @@ package uz.melisa.domain;
 import jakarta.persistence.*;
 import lombok.*;
 import uz.melisa.enums.MessageAuthorityType;
+import uz.melisa.enums.MessageModelType;
 import uz.melisa.enums.MessageType;
 
 @AllArgsConstructor
@@ -33,6 +34,9 @@ public class Message extends AuditingEntity {
 
     @Enumerated(EnumType.STRING)
     private MessageType messageType;
+
+    @Enumerated(EnumType.STRING)
+    private MessageModelType messageModelType;
 
     private Long userId;
 

@@ -13,7 +13,7 @@ public final class SecurityUtil {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Object principal = authentication.getPrincipal();
         try {
-            return (Long) principal;
+            return Long.parseLong(principal.toString());
         } catch (Exception e) {
             throw new BadRequestException("User details could not parsed");
         }

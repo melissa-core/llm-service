@@ -58,9 +58,6 @@ melisa:
 # =========================
 ---
 spring:
-  config:
-    activate:
-      on-profile: dev
   ai:
     model:
       chat: anthropic  # enables Anthropic ChatModel auto-config

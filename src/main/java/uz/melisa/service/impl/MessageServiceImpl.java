@@ -2,6 +2,7 @@ package uz.melisa.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.WordUtils;
 import org.springframework.stereotype.Service;
 import uz.melisa.domain.Chat;
 import uz.melisa.domain.Message;
@@ -9,6 +10,7 @@ import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.dto.message.MessageResponseDTO;
 import uz.melisa.dto.message.MessageSendRequestDTO;
 import uz.melisa.enums.MessageAuthorityType;
+import uz.melisa.enums.MessageModelType;
 import uz.melisa.enums.MessageType;
 import uz.melisa.exp.ItemNotFoundException;
 import uz.melisa.repository.ChatRepository;
@@ -36,7 +38,7 @@ public class MessageServiceImpl implements MessageService {
             chat = chatRepository.findByIdAndUserIdAndIsDeletedFalse(messageSendRequestDTO.getChatId(), userId)
                     .orElseThrow(() -> new ItemNotFoundException("Chat not found"));
         } else {
-            chat = chatRepository.save(buildChat(userId));
+            chat = chatRepository.save(buildChat(userId, getChatTitle(messageSendRequestDTO.getMessage())));
             chatRepository.flush();
         }
         message = messageRepository.save(buildUserMessage(messageSendRequestDTO, chat.getId(), userId));
@@ -45,10 +47,10 @@ public class MessageServiceImpl implements MessageService {
         return CommonResponse.success(new MessageResponseDTO(modelMessageResponse.getText(), chat.getId()));
     }
 
-    private Chat buildChat(Long userId) {
+    private Chat buildChat(Long userId, String chatTitle) {
         Chat chat = new Chat();
         chat.setUserId(userId);
-        chat.setTitle("Chat with Claude");
+        chat.setTitle(chatTitle);
         return chat;
     }
 
@@ -58,7 +60,8 @@ public class MessageServiceImpl implements MessageService {
         message.setUserId(userId);
         message.setText(textMessage);
         message.setMessageType(MessageType.TEXT);
-        message.setMessageAuthorityType(MessageAuthorityType.CLAUDE);
+        message.setMessageAuthorityType(MessageAuthorityType.MODEL);
+        message.setMessageModelType(MessageModelType.CLAUDE);
         return message;
     }
 
@@ -70,5 +73,13 @@ public class MessageServiceImpl implements MessageService {
         message.setUserId(userId);
         message.setText(messageSendRequestDTO.getMessage());
         return message;
+    }
+
+    private String getChatTitle(String message) {
+        String title = message.length() > 11
+                ? message.substring(0, 11) + "..."
+                : message;
+
+        return WordUtils.capitalizeFully(title);
     }
 }

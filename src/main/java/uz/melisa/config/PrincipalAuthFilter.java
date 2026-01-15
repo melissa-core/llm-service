@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -22,6 +23,7 @@ import java.util.Base64;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class PrincipalAuthFilter extends OncePerRequestFilter {
 
     private final ApplicationProperties props;
@@ -30,6 +32,7 @@ public class PrincipalAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
 
+        log.info("Request income : {}", req.getRequestURI());
         String userId = req.getHeader("X-User-Id");
         String roles = req.getHeader("X-User-Roles");
         String sig = req.getHeader("X-Auth-Signature");

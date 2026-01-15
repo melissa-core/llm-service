@@ -3,12 +3,15 @@ package uz.melisa.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import uz.melisa.dto.ResponseMessageDTO;
+import uz.melisa.dto.chat.ChatDTO;
+import uz.melisa.dto.chat.ChatMessagesDTO;
 import uz.melisa.dto.chat.CreateChatRequestDTO;
 import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.service.ChatService;
@@ -28,5 +31,22 @@ public class ChatController {
     ) {
         log.info("REST request to create chat : {}", createChatRequestDTO);
         return ResponseUtil.buildResponseDTO(chatService.createChat(createChatRequestDTO));
+    }
+
+    @GetMapping
+    public Page<ChatDTO> getChatPages(
+            @PageableDefault(sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        log.info("REST request to get chat pages");
+        return chatService.getChatPages(pageable);
+    }
+
+    @GetMapping("/{id}/messages")
+    public Page<ChatMessagesDTO> getChatMessages(
+            @PathVariable("id") Long id,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        log.info("REST request to get chat messages");
+        return chatService.getChatMessages(id, pageable);
     }
 }
