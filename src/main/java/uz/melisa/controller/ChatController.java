@@ -41,6 +41,13 @@ public class ChatController {
         return chatService.getChatPages(pageable);
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<CommonResponse<ChatDTO>> getChatById(
+            @PathVariable("id") Long id) {
+        log.info("REST request to get chat : {}", id);
+        return ResponseUtil.buildResponseDTO(chatService.getChatById(id));
+    }
+
     @GetMapping("/{id}/messages")
     public Page<ChatMessagesDTO> getChatMessages(
             @PathVariable("id") Long id,

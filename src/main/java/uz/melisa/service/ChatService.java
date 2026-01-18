@@ -15,4 +15,6 @@ public interface ChatService {
     Page<ChatDTO> getChatPages(Pageable pageable);
 
     Page<ChatMessagesDTO> getChatMessages(Long id, Pageable pageable);
+
+    CommonResponse<ChatDTO> getChatById(Long id);
 }

@@ -53,4 +53,14 @@ public class ChatServiceImpl implements ChatService {
 
         return messageRepository.findChatMessages(id, currentUserId, pageable);
     }
+
+    @Override
+    public CommonResponse<ChatDTO> getChatById(Long id) {
+        Long currentUserId = getCurrentUserId();
+
+        Chat chat = chatRepository.findByIdAndUserIdAndIsDeletedFalse(id, currentUserId)
+                .orElseThrow(() -> new ItemNotFoundException("Chat not found"));
+
+        return CommonResponse.success(new ChatDTO(chat.getId(), chat.getTitle()));
+    }
 }
