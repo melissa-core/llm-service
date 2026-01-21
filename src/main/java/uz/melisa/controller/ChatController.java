@@ -65,4 +65,10 @@ public class ChatController {
         log.info("REST request to get chat messages");
         return chatService.getChatMessages(id, pageable);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<CommonResponse<ResponseMessageDTO>> deleteChat(@PathVariable("id") Long id) {
+        log.info("REST request to delete chat : {}", id);
+        return ResponseUtil.buildResponseDTO(chatService.deleteChat(id));
+    }
 }

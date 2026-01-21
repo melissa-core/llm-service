@@ -44,7 +44,7 @@ public class ChatServiceImpl implements ChatService {
     public Page<ChatDTO> getChatPages(Pageable pageable) {
         Long userId = getCurrentUserId();
         return chatRepository.findAll(byUser(userId), pageable)
-                .map(chat -> new ChatDTO(chat.getId(), chat.getTitle()));
+                .map(chat -> new ChatDTO(chat.getId(), chat.getTitle(), chat.getCreatedAt()));
     }
 
     @Override
@@ -64,7 +64,7 @@ public class ChatServiceImpl implements ChatService {
         Chat chat = chatRepository.findByIdAndUserIdAndIsDeletedFalse(id, currentUserId)
                 .orElseThrow(() -> new ItemNotFoundException(CHAT_NOT_FOUND));
 
-        return CommonResponse.success(new ChatDTO(chat.getId(), chat.getTitle()));
+        return CommonResponse.success(new ChatDTO(chat.getId(), chat.getTitle(), chat.getCreatedAt()));
     }
 
     @Transactional
@@ -83,5 +83,18 @@ public class ChatServiceImpl implements ChatService {
         chatRepository.save(updateChat);
 
         return CommonResponse.success(new ResponseMessageDTO("Chat updated successfully"));
+    }
+
+    @Transactional
+    @Override
+    public CommonResponse<ResponseMessageDTO> deleteChat(Long id) {
+        if (id == null) throw new ItemNotFoundException(CHAT_NOT_FOUND);
+
+        Chat chat = chatRepository.findByIdAndUserIdAndIsDeletedFalse(id, getCurrentUserId())
+                .orElseThrow(() -> new ItemNotFoundException(CHAT_NOT_FOUND));
+
+        chat.setDeleted(true);
+        chatRepository.save(chat);
+        return CommonResponse.success(new ResponseMessageDTO("Chat deleted successfully"));
     }
 }

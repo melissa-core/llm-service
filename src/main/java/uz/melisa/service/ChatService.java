@@ -19,4 +19,6 @@ public interface ChatService {
     CommonResponse<ChatDTO> getChatById(Long id);
 
     CommonResponse<ResponseMessageDTO> updateChat(Long id, CreateChatRequestDTO createChatRequestDTO);
+
+    CommonResponse<ResponseMessageDTO> deleteChat(Long id);
 }
