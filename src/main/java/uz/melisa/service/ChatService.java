@@ -17,4 +17,6 @@ public interface ChatService {
     Page<ChatMessagesDTO> getChatMessages(Long id, Pageable pageable);
 
     CommonResponse<ChatDTO> getChatById(Long id);
+
+    CommonResponse<ResponseMessageDTO> updateChat(Long id, CreateChatRequestDTO createChatRequestDTO);
 }

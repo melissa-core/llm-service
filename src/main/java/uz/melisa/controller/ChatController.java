@@ -33,6 +33,15 @@ public class ChatController {
         return ResponseUtil.buildResponseDTO(chatService.createChat(createChatRequestDTO));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<CommonResponse<ResponseMessageDTO>> updateChat(
+            @PathVariable("id") Long id,
+            @RequestBody @Valid CreateChatRequestDTO createChatRequestDTO
+    ) {
+        log.info("REST request to update chat : {}, {}", createChatRequestDTO, id);
+        return ResponseUtil.buildResponseDTO(chatService.updateChat(id, createChatRequestDTO));
+    }
+
     @GetMapping
     public Page<ChatDTO> getChatPages(
             @PageableDefault(sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable

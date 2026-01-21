@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import uz.melisa.domain.Chat;
 import uz.melisa.dto.ResponseMessageDTO;
 import uz.melisa.dto.chat.ChatDTO;
@@ -23,6 +24,8 @@ import static uz.melisa.util.SecurityUtil.getCurrentUserId;
 @Slf4j
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
+
+    public static final String CHAT_NOT_FOUND = "Chat not found";
 
     private final ChatRepository chatRepository;
     private final MessageRepository messageRepository;
@@ -49,7 +52,7 @@ public class ChatServiceImpl implements ChatService {
         Long currentUserId = getCurrentUserId();
 
         chatRepository.findByIdAndUserIdAndIsDeletedFalse(id, currentUserId)
-                .orElseThrow(() -> new ItemNotFoundException("Chat not found"));
+                .orElseThrow(() -> new ItemNotFoundException(CHAT_NOT_FOUND));
 
         return messageRepository.findChatMessages(id, currentUserId, pageable);
     }
@@ -59,8 +62,26 @@ public class ChatServiceImpl implements ChatService {
         Long currentUserId = getCurrentUserId();
 
         Chat chat = chatRepository.findByIdAndUserIdAndIsDeletedFalse(id, currentUserId)
-                .orElseThrow(() -> new ItemNotFoundException("Chat not found"));
+                .orElseThrow(() -> new ItemNotFoundException(CHAT_NOT_FOUND));
 
         return CommonResponse.success(new ChatDTO(chat.getId(), chat.getTitle()));
+    }
+
+    @Transactional
+    @Override
+    public CommonResponse<ResponseMessageDTO> updateChat(Long id, CreateChatRequestDTO createChatRequestDTO) {
+        if (id == null) throw new ItemNotFoundException(CHAT_NOT_FOUND);
+
+        Chat chat = chatRepository.findByIdAndUserIdAndIsDeletedFalse(id, getCurrentUserId())
+                .orElseThrow(() -> new ItemNotFoundException(CHAT_NOT_FOUND));
+
+        Chat updateChat = Chat.builder()
+                .id(chat.getId())
+                .title(createChatRequestDTO.getTitle())
+                .userId(chat.getUserId())
+                .build();
+        chatRepository.save(updateChat);
+
+        return CommonResponse.success(new ResponseMessageDTO("Chat updated successfully"));
     }
 }
