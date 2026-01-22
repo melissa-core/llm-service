@@ -20,5 +20,7 @@ public class Chat extends AuditingEntity {
 
     private Long userId;
 
+    private boolean isTemporary;
+
     private boolean isDeleted;
 }

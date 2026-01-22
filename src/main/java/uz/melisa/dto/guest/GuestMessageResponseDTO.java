@@ -1,6 +1,5 @@
-package uz.melisa.dto.claude;
+package uz.melisa.dto.guest;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,7 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ClaudeChatRequest {
-    @NotBlank
+public class GuestMessageResponseDTO {
+
     private String message;
 }

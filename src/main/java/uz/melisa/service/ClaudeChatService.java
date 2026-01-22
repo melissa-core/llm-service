@@ -12,7 +12,7 @@ public class ClaudeChatService {
     private final ChatClient claudeChatClient;
     private final ClaudeProperties props;
 
-    public String chatUzbek(String userText) {
+    public String chatWithClaude(String userText) {
         String safeInput = enforceMaxChars(userText, props.getMaxInputChars());
 
         return claudeChatClient.prompt()

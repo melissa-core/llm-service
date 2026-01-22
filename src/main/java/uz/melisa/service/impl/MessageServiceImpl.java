@@ -42,7 +42,7 @@ public class MessageServiceImpl implements MessageService {
             chatRepository.flush();
         }
         message = messageRepository.save(buildUserMessage(messageSendRequestDTO, chat.getId(), userId));
-        String modelResponseMessage = claudeChatService.chatUzbek(message.getText());
+        String modelResponseMessage = claudeChatService.chatWithClaude(message.getText());
         Message modelMessageResponse = messageRepository.save(buildModelMessage(modelResponseMessage, message.getChatId(), userId));
         return CommonResponse.success(new MessageResponseDTO(modelMessageResponse.getText(), chat.getId()));
     }
