@@ -33,7 +33,8 @@ public class PrincipalAuthFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         return path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")
-                || path.equals("/swagger-ui.html");
+                || path.equals("/swagger-ui.html")
+                || path.equals("/api/claude/free-chat");
     }
 
     @Override

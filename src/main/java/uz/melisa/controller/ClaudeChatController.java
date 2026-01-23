@@ -18,7 +18,7 @@ import uz.melisa.util.ResponseUtil;
 @RestController
 @RequiredArgsConstructor
 @Slf4j
-@RequestMapping("/api/guest")
+@RequestMapping("/api/claude")
 public class ClaudeChatController {
 
     private final GuestService guestService;
