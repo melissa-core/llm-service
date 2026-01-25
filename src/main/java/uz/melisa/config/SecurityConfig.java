@@ -31,7 +31,8 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/api/claude/free-chat"
+                                "/api/guest/free-chat",
+                                "/api/guest/messages"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

@@ -20,6 +20,9 @@ public class Chat extends AuditingEntity {
 
     private Long userId;
 
+    @Column(name = "device_id", length = 512)
+    private String deviceId;
+
     private boolean isTemporary;
 
     private boolean isDeleted;

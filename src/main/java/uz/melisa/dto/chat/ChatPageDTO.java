@@ -9,11 +9,10 @@ import java.sql.Timestamp;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ChatMessagesDTO {
+public class ChatPageDTO {
 
-    private Long messageId;
-    private String messageText;
-    private String messageType;
-    private String messageAuthorityType;
+    private Long id;
+    private String title;
+    private String subtitle;
     private Timestamp createdAt;
 }

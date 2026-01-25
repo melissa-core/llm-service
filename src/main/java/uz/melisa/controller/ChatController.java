@@ -1,5 +1,6 @@
 package uz.melisa.controller;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import uz.melisa.dto.ResponseMessageDTO;
 import uz.melisa.dto.chat.ChatDTO;
 import uz.melisa.dto.chat.ChatMessagesDTO;
+import uz.melisa.dto.chat.ChatPageDTO;
 import uz.melisa.dto.chat.CreateChatRequestDTO;
 import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.service.ChatService;
@@ -43,11 +45,11 @@ public class ChatController {
     }
 
     @GetMapping
-    public Page<ChatDTO> getChatPages(
+    public ResponseEntity<CommonResponse<Page<ChatPageDTO>>> getChatPages(
             @PageableDefault(sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         log.info("REST request to get chat pages");
-        return chatService.getChatPages(pageable);
+        return ResponseUtil.buildResponseDTO(chatService.getChatPages(pageable));
     }
 
     @GetMapping("/{id}")
@@ -58,17 +60,26 @@ public class ChatController {
     }
 
     @GetMapping("/{id}/messages")
-    public Page<ChatMessagesDTO> getChatMessages(
+    public ResponseEntity<CommonResponse<Page<ChatMessagesDTO>>> getChatMessages(
             @PathVariable("id") Long id,
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         log.info("REST request to get chat messages");
-        return chatService.getChatMessages(id, pageable);
+        return ResponseUtil.buildResponseDTO(chatService.getChatMessages(id, pageable));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<CommonResponse<ResponseMessageDTO>> deleteChat(@PathVariable("id") Long id) {
         log.info("REST request to delete chat : {}", id);
         return ResponseUtil.buildResponseDTO(chatService.deleteChat(id));
+    }
+
+    @Hidden
+    @PostMapping("/activate-chat/{key}")
+    public ResponseEntity<CommonResponse<ResponseMessageDTO>> activateChat(
+            @PathVariable("key") String key
+    ) {
+        log.info("REST request to activate chat : {}", key);
+        return ResponseUtil.buildResponseDTO(chatService.activateChat(key));
     }
 }

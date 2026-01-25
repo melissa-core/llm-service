@@ -5,10 +5,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import uz.melisa.dto.ResponseMessageDTO;
 import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.dto.message.MessageResponseDTO;
 import uz.melisa.dto.message.MessageSendRequestDTO;
@@ -30,5 +28,14 @@ public class MessageController {
     ) {
         log.info("REST request to send message : {}", messageSendRequestDTO);
         return ResponseUtil.buildResponseDTO(messageService.sendMessage(messageSendRequestDTO));
+    }
+
+    @PreAuthorize("hasRole('ROLE_USER')")
+    @PostMapping("/delete/{id}")
+    public ResponseEntity<CommonResponse<ResponseMessageDTO>> deleteMessage(
+            @PathVariable("id") long id
+    ) {
+        log.info("REST request to delete message : {}", id);
+        return ResponseUtil.buildResponseDTO(messageService.deleteMessage(id));
     }
 }

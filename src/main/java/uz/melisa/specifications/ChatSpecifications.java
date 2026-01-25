@@ -9,6 +9,9 @@ public final class ChatSpecifications {
     }
 
     public static Specification<Chat> byUser(long userId) {
-        return (root, query, cb) -> cb.equal(root.get("userId"), userId);
+        return (root, query, cb) -> cb.and(
+                cb.equal(root.get("userId"), userId),
+                cb.isFalse(root.get("isDeleted"))
+        );
     }
 }

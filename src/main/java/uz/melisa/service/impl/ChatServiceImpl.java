@@ -10,14 +10,17 @@ import uz.melisa.domain.Chat;
 import uz.melisa.dto.ResponseMessageDTO;
 import uz.melisa.dto.chat.ChatDTO;
 import uz.melisa.dto.chat.ChatMessagesDTO;
+import uz.melisa.dto.chat.ChatPageDTO;
 import uz.melisa.dto.chat.CreateChatRequestDTO;
 import uz.melisa.dto.common.CommonResponse;
+import uz.melisa.enums.MessageAuthorityType;
 import uz.melisa.exp.ItemNotFoundException;
 import uz.melisa.repository.ChatRepository;
 import uz.melisa.repository.MessageRepository;
 import uz.melisa.service.ChatService;
 
-import static uz.melisa.specifications.ChatSpecifications.byUser;
+import java.util.Optional;
+
 import static uz.melisa.util.SecurityUtil.getCurrentUserId;
 
 @Service
@@ -40,21 +43,24 @@ public class ChatServiceImpl implements ChatService {
         return CommonResponse.success(new ResponseMessageDTO("Chat saved successfully"));
     }
 
+    @Transactional(readOnly = true)
     @Override
-    public Page<ChatDTO> getChatPages(Pageable pageable) {
+    public CommonResponse<Page<ChatPageDTO>> getChatPages(Pageable pageable) {
         Long userId = getCurrentUserId();
-        return chatRepository.findAll(byUser(userId), pageable)
-                .map(chat -> new ChatDTO(chat.getId(), chat.getTitle(), chat.getCreatedAt()));
+        Page<ChatPageDTO> chatPages = chatRepository.findChatPagesOrdered(userId, MessageAuthorityType.USER, pageable);
+        return CommonResponse.success(chatPages);
     }
 
+    @Transactional(readOnly = true)
     @Override
-    public Page<ChatMessagesDTO> getChatMessages(Long id, Pageable pageable) {
+    public CommonResponse<Page<ChatMessagesDTO>> getChatMessages(Long id, Pageable pageable) {
         Long currentUserId = getCurrentUserId();
 
         chatRepository.findByIdAndUserIdAndIsDeletedFalse(id, currentUserId)
                 .orElseThrow(() -> new ItemNotFoundException(CHAT_NOT_FOUND));
 
-        return messageRepository.findChatMessages(id, currentUserId, pageable);
+        Page<ChatMessagesDTO> chatMessages = messageRepository.findChatMessages(id, currentUserId, pageable);
+        return CommonResponse.success(chatMessages);
     }
 
     @Override
@@ -96,5 +102,22 @@ public class ChatServiceImpl implements ChatService {
         chat.setDeleted(true);
         chatRepository.save(chat);
         return CommonResponse.success(new ResponseMessageDTO("Chat deleted successfully"));
+    }
+
+    @Transactional
+    @Override
+    public CommonResponse<ResponseMessageDTO> activateChat(String key) {
+        Long currentUserId = getCurrentUserId();
+        Optional<Chat> chatOpt = chatRepository.findTop1ByDeviceIdAndIsDeletedFalse(key);
+        if (chatOpt.isEmpty()) {
+            log.warn("Temporary chat is not found");
+            return CommonResponse.success(new ResponseMessageDTO("Temporary chat is not found"));
+        }
+
+        Chat chat = chatOpt.get();
+        chatRepository.activateChatByDeviceId(currentUserId, chat.getId());
+        messageRepository.setUserId(currentUserId, chat.getId());
+        log.info("Chat activated successfully");
+        return CommonResponse.success(new ResponseMessageDTO("Chat activated successfully"));
     }
 }
