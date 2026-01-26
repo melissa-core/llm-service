@@ -11,4 +11,6 @@ public class MessageResponseDTO {
 
     private String message;
     private Long chatId;
+    private Long userMessageId;
+    private Long modelMessageId;
 }
