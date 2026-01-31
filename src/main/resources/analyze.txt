@@ -1,0 +1,59 @@
+{
+  "result" : {
+    "metadata" : {
+      "finishReason" : "end_turn",
+      "contentFilters" : [ ],
+      "empty" : true
+    },
+    "output" : {
+      "messageType" : "ASSISTANT",
+      "metadata" : {
+        "messageType" : "ASSISTANT"
+      },
+      "toolCalls" : [ ],
+      "media" : [ ],
+      "text" : "Привет! Меня зовут **Melissa** 😊\n\nЯ — AI-ассистент, созданный компанией M TECH DYNAMICS. Моя главная задача — помогать тебе находить полезные товары и делать правильный выбор, но я также могу помочь с разными повседневными вопросами.\n\nЧем могу быть полезна сегодня?"
+    }
+  },
+  "metadata" : {
+    "id" : "msg_01QBq5HkUs6LFkdiJFUjpaWx",
+    "model" : "claude-sonnet-4-5-20250929",
+    "rateLimit" : {
+      "requestsLimit" : 0,
+      "requestsRemaining" : 0,
+      "requestsReset" : 0.0,
+      "tokensLimit" : 0,
+      "tokensRemaining" : 0,
+      "tokensReset" : 0.0
+    },
+    "usage" : {
+      "promptTokens" : 600,
+      "completionTokens" : 110,
+      "totalTokens" : 710,
+      "nativeUsage" : {
+        "input_tokens" : 600,
+        "output_tokens" : 110,
+        "cache_creation_input_tokens" : 0,
+        "cache_read_input_tokens" : 0
+      }
+    },
+    "promptMetadata" : [ ],
+    "empty" : false
+  },
+  "results" : [ {
+    "metadata" : {
+      "finishReason" : "end_turn",
+      "contentFilters" : [ ],
+      "empty" : true
+    },
+    "output" : {
+      "messageType" : "ASSISTANT",
+      "metadata" : {
+        "messageType" : "ASSISTANT"
+      },
+      "toolCalls" : [ ],
+      "media" : [ ],
+      "text" : "Привет! Меня зовут **Melissa** 😊\n\nЯ — AI-ассистент, созданный компанией M TECH DYNAMICS. Моя главная задача — помогать тебе находить полезные товары и делать правильный выбор, но я также могу помочь с разными повседневными вопросами.\n\nЧем могу быть полезна сегодня?"
+    }
+  } ]
+}
