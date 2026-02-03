@@ -14,6 +14,11 @@ spring:
       ddl-auto: update
     open-in-view: false
 
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
 management:
   endpoints:
     web:
@@ -45,6 +50,9 @@ eureka:
 # --- Your own service-level settings (optional but useful) ---
 melisa:
   ai:
+    memory:
+      max-messages: 14
+      ttl-seconds: 2592000
     claude:
       system: "Faqat o'zbek tilida va faqat LOTIN yozuvida javob ber. Ruscha yoki inglizcha so'z ishlatma. Qisqa va aniq yoz."
       model: "claude-sonnet-4-5"

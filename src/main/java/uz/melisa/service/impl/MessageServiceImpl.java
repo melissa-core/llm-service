@@ -46,7 +46,8 @@ public class MessageServiceImpl implements MessageService {
         }
         message = messageRepository.save(buildUserMessage(messageSendRequestDTO.getMessage(), chat.getId(), userId));
         messageRepository.flush();
-        String modelResponseMessage = claudeChatService.chatWithClaude(message.getText());
+        String conversationId = "chat:" + chat.getId();
+        String modelResponseMessage = claudeChatService.chatWithClaude(conversationId, message.getText());
         Message modelMessageResponse = messageRepository.save(buildModelMessage(modelResponseMessage, message.getChatId(), userId));
         messageRepository.flush();
         return CommonResponse.success(new MessageResponseDTO(modelMessageResponse.getText(), chat.getId(), message.getId(), modelMessageResponse.getId()));

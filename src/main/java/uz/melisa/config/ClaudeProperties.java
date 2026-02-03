@@ -8,15 +8,30 @@ import org.springframework.validation.annotation.Validated;
 @Getter
 @Setter
 @Validated
-@ConfigurationProperties(prefix = "melisa.ai.claude")
+@ConfigurationProperties(prefix = "melisa.ai")
 public class ClaudeProperties {
 
-    private String system;
-    private String model;
-    private Integer maxOutputTokens;
-    private Integer maxInputChars;
-    private Double temperature;
-    private Double topP;
+
+    private Claude claude;
+    private Memory memory;
+
+    @Getter
+    @Setter
+    public static class Memory {
+        private long maxMessages;
+        private long ttlSeconds;
+    }
+
+    @Getter
+    @Setter
+    public static class Claude {
+        private String system;
+        private String model;
+        private Integer maxOutputTokens;
+        private Integer maxInputChars;
+        private Double temperature;
+        private Double topP;
+    }
 }
 
 

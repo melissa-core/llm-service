@@ -42,7 +42,8 @@ public class GuestServiceImpl implements GuestService {
                 .orElseGet(() -> chatRepository.save(buildChatByDeviceId(deviceId, messageText)));
 
         messageRepository.save(buildUserMessage(messageText, chat.getId(), null));
-        String claudeResponse = claudeChatService.chatWithClaude(messageText);
+        String conversationId = "guest:" + deviceId;
+        String claudeResponse = claudeChatService.chatWithClaude(conversationId, messageText);
         messageRepository.save(buildModelMessage(claudeResponse, chat.getId(), null));
         return CommonResponse.success(new GuestMessageResponseDTO(claudeResponse));
     }

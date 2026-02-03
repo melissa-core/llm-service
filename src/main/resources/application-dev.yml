@@ -13,6 +13,10 @@ spring:
     hibernate:
       ddl-auto: update
     open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
 
 management:
   endpoints:
@@ -69,7 +73,7 @@ spring:
           model: ${ANTHROPIC_MODEL}
           max-tokens: ${ANTHROPIC_MAX_TOKENS}
           temperature: ${ANTHROPIC_TEMPERATURE}
-#          top-p: ${ANTHROPIC_TOP_P:0.9}
+    #          top-p: ${ANTHROPIC_TOP_P:0.9}
     #    model:
     #      chat: ollama  # enables Ollama ChatModel auto-config
     #    ollama:

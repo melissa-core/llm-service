@@ -5,24 +5,24 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import static uz.melisa.constants.PrivacyConstants.SYSTEM_COMMAND;
+
 @Configuration
 public class ClaudeAiConfig {
 
     @Bean
     public ChatClient claudeChatClient(ChatClient.Builder builder, ClaudeProperties props) {
-
+        ClaudeProperties.Claude claude = props.getClaude();
         var optionsBuilder = AnthropicChatOptions.builder()
-                .model(props.getModel())
-                .maxTokens(props.getMaxOutputTokens());
+                .model(claude.getModel())
+                .maxTokens(claude.getMaxOutputTokens());
 
-        if (props.getTemperature() != null) {
-            optionsBuilder.temperature(props.getTemperature());
+        if (claude.getTemperature() != null) {
+            optionsBuilder.temperature(claude.getTemperature());
         }
-        var options = optionsBuilder.build();
-
         return builder
-                .defaultSystem(props.getSystem())
-                .defaultOptions(options)
+                .defaultSystem(SYSTEM_COMMAND)
+                .defaultOptions(optionsBuilder.build())
                 .build();
     }
 }
