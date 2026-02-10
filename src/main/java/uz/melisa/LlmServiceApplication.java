@@ -8,11 +8,12 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import uz.melisa.config.ApplicationProperties;
 import uz.melisa.config.ClaudeProperties;
+import uz.melisa.config.ModelsProperties;
 
 @SpringBootApplication
 @EnableJpaAuditing
 @EnableAspectJAutoProxy
-@EnableConfigurationProperties({ClaudeProperties.class, ApplicationProperties.class})
+@EnableConfigurationProperties({ClaudeProperties.class, ApplicationProperties.class, ModelsProperties.class})
 @EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)
 public class LlmServiceApplication {
 
