@@ -5,10 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import uz.melisa.config.ModelsProperties;
-import uz.melisa.dto.client.router.RateDifficultyRequestDTO;
-import uz.melisa.dto.client.router.RateDifficultyResponseDTO;
+import uz.melisa.dto.client.router.*;
 import uz.melisa.service.RestSenderService;
 
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -30,6 +30,18 @@ public class RouterServiceClient {
                 new RateDifficultyRequestDTO(message),
                 RateDifficultyResponseDTO.class,
                 headers
+        );
+    }
+
+    public SummarizeResponseDTO summarize(List<SummarizeMessageDTO> messages, String previousSummary) {
+        ModelsProperties.RouterModel routerModel = modelsProperties.getRouterModel();
+        String url = routerModel.getBaseUrl() + routerModel.getSummarizePath();
+        Map<String, String> headers = Map.of("x-api-key", routerModel.getAuthKey());
+
+        return restSenderService.sendAndReceive(
+                url, HttpMethod.POST,
+                new SummarizeRequestDTO(routerModel.getMaxTokens(), previousSummary, messages),
+                SummarizeResponseDTO.class, headers
         );
     }
 }
