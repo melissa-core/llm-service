@@ -16,6 +16,13 @@ public class MessageMetadata extends AuditingEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "message_id", insertable = false, updatable = false)
+    private Message message;
+
+    @Column(name = "message_id")
+    private Long messageId;
+
     @Column(name = "chat_id")
     private Long chatId;
 

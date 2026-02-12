@@ -48,6 +48,8 @@ public interface MessageRepository extends JpaRepository<Message, Long>, JpaSpec
 
     Optional<Message> findByUserIdAndIsDeletedFalse(Long userId);
 
+    Optional<Message> findByIdAndUserIdAndIsDeletedFalse(Long id, Long userId);
+
     @Modifying
     @Query("update Message set isDeleted = true where id = :id")
     void deleteMessageById(@Param("id") Long id);

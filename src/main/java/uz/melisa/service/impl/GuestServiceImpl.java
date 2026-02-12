@@ -7,59 +7,60 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import uz.melisa.domain.Chat;
+import uz.melisa.domain.Message;
 import uz.melisa.dto.chat.ChatMessagesDTO;
+import uz.melisa.dto.chat.ChatUserMessageDTO;
 import uz.melisa.dto.claude.ClaudeChatRequest;
 import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.dto.guest.GuestMessageResponseDTO;
 import uz.melisa.exp.BadRequestException;
 import uz.melisa.repository.ChatRepository;
 import uz.melisa.repository.MessageRepository;
-import uz.melisa.service.ClaudeChatService;
+import uz.melisa.service.GlobalMessageHandler;
 import uz.melisa.service.GuestService;
 
-import static uz.melisa.util.ChatUtil.buildChatByDeviceId;
-import static uz.melisa.util.MessageUtil.buildModelMessage;
-import static uz.melisa.util.MessageUtil.buildUserMessage;
+import static uz.melisa.util.StringUtil.trimToEmpty;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class GuestServiceImpl implements GuestService {
 
-    private final ClaudeChatService claudeChatService;
+    private final GlobalMessageHandler globalMessageHandler;
+    private final GuestMessageHelperService guestMessageHelperService;
+
     private final ChatRepository chatRepository;
     private final MessageRepository messageRepository;
 
-    @Transactional
     @Override
     public CommonResponse<GuestMessageResponseDTO> guestSendMessage(String deviceId, ClaudeChatRequest request) {
-        if (deviceId == null || deviceId.isBlank()) {
-            throw new BadRequestException("Device id cannot be null or empty");
-        }
+        String device = trimToEmpty(deviceId);
+        if (device.isEmpty()) throw new BadRequestException("Device id cannot be null or empty");
 
-        String messageText = request.getMessage();
-        Chat chat = chatRepository.findTop1ByDeviceIdAndIsDeletedFalse(deviceId)
-                .orElseGet(() -> chatRepository.save(buildChatByDeviceId(deviceId, messageText)));
+        String messageText = request == null ? "" : trimToEmpty(request.getMessage());
+        if (messageText.isEmpty()) throw new BadRequestException("Message cannot be null or empty");
 
-        messageRepository.save(buildUserMessage(messageText, chat.getId(), null));
-        String conversationId = "guest:" + deviceId;
-        String claudeResponse = claudeChatService.chatWithClaude(conversationId, messageText);
-        messageRepository.save(buildModelMessage(claudeResponse, chat.getId(), null));
-        return CommonResponse.success(new GuestMessageResponseDTO(claudeResponse));
+        Chat chat = guestMessageHelperService.saveOrGetGuestChat(device, messageText);
+        Message message = guestMessageHelperService.saveGuestUserMessage(chat.getId(), messageText);
+
+        String modelResponse = globalMessageHandler.handleChatMessage(new ChatUserMessageDTO(
+                chat.getId(), message.getId(), messageText
+        ));
+
+        guestMessageHelperService.saveGuestModelMessage(chat.getId(), modelResponse);
+
+        return CommonResponse.success(new GuestMessageResponseDTO(modelResponse));
     }
 
     @Transactional(readOnly = true)
     @Override
     public CommonResponse<Page<ChatMessagesDTO>> getMessages(String deviceId, Pageable pageable) {
-        if (deviceId == null || deviceId.isBlank()) {
-            throw new BadRequestException("Device id cannot be null or empty");
-        }
-        Chat chat = chatRepository.findTop1ByDeviceIdAndIsDeletedFalse(deviceId)
-                .orElse(null);
+        String device = trimToEmpty(deviceId);
+        if (device.isEmpty()) throw new BadRequestException("Device id cannot be null or empty");
 
-        if (chat == null) {
-            return CommonResponse.success(Page.empty());
-        }
+        Chat chat = chatRepository.findTop1ByDeviceIdAndIsDeletedFalse(device).orElse(null);
+        if (chat == null) return CommonResponse.success(Page.empty());
+
         Page<ChatMessagesDTO> pageMessages = messageRepository.findGuestChatMessages(chat.getId(), pageable);
         return CommonResponse.success(pageMessages);
     }
