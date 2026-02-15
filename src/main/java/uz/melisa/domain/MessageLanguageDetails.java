@@ -38,5 +38,5 @@ public class MessageLanguageDetails {
 
     private String detectedScript;
 
-    private String detector;
+    private String text;
 }

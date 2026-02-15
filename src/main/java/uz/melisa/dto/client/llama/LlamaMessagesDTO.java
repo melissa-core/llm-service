@@ -10,5 +10,5 @@ import lombok.NoArgsConstructor;
 public class LlamaMessagesDTO {
 
     private String role;
-    private String message;
+    private String content;
 }

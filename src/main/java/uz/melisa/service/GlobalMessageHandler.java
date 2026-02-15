@@ -14,6 +14,7 @@ import uz.melisa.dto.client.llama.LlamaChatResponseDTO;
 import uz.melisa.dto.client.router.RateDifficultyResponseDTO;
 import uz.melisa.dto.client.translator.TranslatorTextRequestDTO;
 import uz.melisa.dto.client.translator.TranslatorTextResponseDTO;
+import uz.melisa.enums.MessageAuthorityType;
 import uz.melisa.repository.ChatMemoryRepository;
 import uz.melisa.service.client.FitratServiceClient;
 import uz.melisa.service.client.LlamaServiceClient;
@@ -41,6 +42,7 @@ public class GlobalMessageHandler {
 
     public String handleChatMessage(ChatUserMessageDTO chatUserMessage) {
         Long chatId = chatUserMessage.getChatId();
+        Long messageId = chatUserMessage.getMessageId();
         String input = trimToEmpty(chatUserMessage.getMessage());
         String conversationKey = "chat:" + chatId;
         String prevSummary = loadPrevSummary(chatId);
@@ -58,10 +60,13 @@ public class GlobalMessageHandler {
             String answer = result == null ? "" : trimToEmpty(result.getText());
 
             chatPostProcessService.processClaude(
-                    chatId, conversationKey, input, answer,
+                    chatId, messageId, conversationKey, input, answer,
                     difficulty, requestLang, requestScript, result
             );
 
+            chatPostProcessService.processLangDetection(detected, chatId, messageId,
+                    requestLang, requestScript, MessageAuthorityType.USER,
+                    (detected == null || detected.getRequestText() == null) ? "" : trimToEmpty(detected.getRequestText()));
             return answer;
         }
 
@@ -70,10 +75,13 @@ public class GlobalMessageHandler {
             String answer = extractLlamaText(llamaResp);
 
             chatPostProcessService.processLlama(
-                    chatId, conversationKey, input, answer,
+                    chatId, messageId, conversationKey, input, answer,
                     difficulty, requestLang, requestScript, llamaResp
             );
 
+            chatPostProcessService.processLangDetection(detected, chatId, messageId,
+                    requestLang, requestScript, MessageAuthorityType.USER,
+                    (detected == null || detected.getRequestText() == null) ? "" : trimToEmpty(detected.getRequestText()));
             return answer;
         }
 
@@ -90,10 +98,13 @@ public class GlobalMessageHandler {
         String finalAnswer = wasCyril ? transliterate(uzLatnAnswer, TRANSLITERATE_LATN, TRANSLITERATE_CYRL) : uzLatnAnswer;
 
         chatPostProcessService.processLlama(
-                chatId, conversationKey, input, trimToEmpty(finalAnswer),
+                chatId, messageId, conversationKey, input, trimToEmpty(finalAnswer),
                 difficulty, requestLang, requestScript, llamaResp
         );
 
+        chatPostProcessService.processLangDetection(detected, chatId, messageId,
+                requestLang, requestScript, MessageAuthorityType.USER,
+                (detected == null || detected.getRequestText() == null) ? "" : trimToEmpty(detected.getRequestText()));
         return trimToEmpty(finalAnswer);
     }
 
@@ -129,8 +140,13 @@ public class GlobalMessageHandler {
 
     private String translate(String text, String source, String target, String script) {
         TranslatorTextRequestDTO req = new TranslatorTextRequestDTO(text, source, target, script);
+
         TranslatorTextResponseDTO resp = translatorServiceClient.translate(req);
-        return resp == null ? "" : trimToEmpty(resp.getText());
+
+        if (resp == null || resp.getTranslations() == null || resp.getTranslations().isEmpty()) {
+            return "";
+        }
+        return trimToEmpty(resp.getTranslations().getFirst());
     }
 
     private String transliterate(String text, String from, String to) {

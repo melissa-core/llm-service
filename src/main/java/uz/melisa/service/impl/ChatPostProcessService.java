@@ -6,11 +6,15 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import uz.melisa.domain.ChatMemory;
+import uz.melisa.domain.MessageLanguageDetails;
 import uz.melisa.dto.claude.ClaudeResult;
+import uz.melisa.dto.client.fitrat.FitratDetectLangResponseDTO;
 import uz.melisa.dto.client.llama.LlamaChatResponseDTO;
 import uz.melisa.dto.client.router.SummarizeMessageDTO;
 import uz.melisa.dto.client.router.SummarizeResponseDTO;
+import uz.melisa.enums.MessageAuthorityType;
 import uz.melisa.repository.ChatMemoryRepository;
+import uz.melisa.repository.MessageLanguageDetailsRepository;
 import uz.melisa.service.client.RouterServiceClient;
 import uz.melisa.util.StringUtil;
 
@@ -29,10 +33,12 @@ public class ChatPostProcessService {
     private final MessageMetadataHelperService messageMetadataHelperService;
     private final RouterServiceClient routerServiceClient;
     private final ChatMemoryRepository chatMemoryRepository;
+    private final MessageLanguageDetailsRepository messageLanguageDetailsRepository;
 
     @Async("postProcessExecutor")
     @Transactional
     public void processClaude(Long chatId,
+                              Long messageId,
                               String conversationKey,
                               String userText,
                               String assistantText,
@@ -44,7 +50,7 @@ public class ChatPostProcessService {
 
         try {
             messageMetadataHelperService.saveClaude(
-                    chatId, conversationKey, result, difficulty, requestLang, requestScript
+                    chatId, messageId, conversationKey, result, difficulty, requestLang, requestScript
             );
         } catch (Exception e) {
             log.warn("metadata save failed chatId={} provider=claude", chatId, e);
@@ -60,6 +66,7 @@ public class ChatPostProcessService {
     @Async("postProcessExecutor")
     @Transactional
     public void processLlama(Long chatId,
+                             Long messageId,
                              String conversationKey,
                              String userText,
                              String assistantText,
@@ -71,7 +78,7 @@ public class ChatPostProcessService {
 
         try {
             messageMetadataHelperService.saveLlama(
-                    chatId, conversationKey, llamaResp, difficulty, requestLang, requestScript
+                    chatId, messageId, conversationKey, llamaResp, difficulty, requestLang, requestScript
             );
         } catch (Exception e) {
             log.warn("metadata save failed chatId={} provider=llama", chatId, e);
@@ -81,6 +88,26 @@ public class ChatPostProcessService {
             updateSummary(chatId, userText, assistantText);
         } catch (Exception e) {
             log.warn("summary save failed chatId={}", chatId, e);
+        }
+    }
+
+    @Async("postProcessExecutor")
+    @Transactional
+    public void processLangDetection(FitratDetectLangResponseDTO langDetectResp, Long chatId,
+                                     Long messageId, String detectedLang, String detectedScript,
+                                     MessageAuthorityType messageAuthorityType, String text) {
+        if (langDetectResp == null) return;
+        MessageLanguageDetails languageDetails = new MessageLanguageDetails();
+        languageDetails.setChatId(chatId);
+        languageDetails.setMessageId(messageId);
+        languageDetails.setDetectedLanguage(detectedLang);
+        languageDetails.setDetectedScript(detectedScript);
+        languageDetails.setMessageAuthorityType(messageAuthorityType);
+        languageDetails.setText(trimToEmpty(text));
+        try {
+            messageLanguageDetailsRepository.save(languageDetails);
+        } catch (Exception e) {
+            log.warn("metadata save failed chatId={} provider=languageDetails", chatId, e);
         }
     }
 

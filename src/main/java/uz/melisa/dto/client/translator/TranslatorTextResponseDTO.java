@@ -4,13 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class TranslatorTextResponseDTO {
 
-    private String text;
-    private String source;
-    private String target;
-    private String script;
+    private List<String> translations;
 }

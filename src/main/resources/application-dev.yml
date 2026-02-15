@@ -49,13 +49,43 @@ application:
 # --- Your own service-level settings (optional but useful) ---
 melisa:
   ai:
+    memory:
+      max-messages: 14
+      ttl-seconds: 2592000
     claude:
       system: "Faqat o'zbek tilida va faqat LOTIN yozuvida javob ber. Ruscha yoki inglizcha so'z ishlatma. Qisqa va aniq yoz."
       model: "claude-sonnet-4-5"
       max-output-tokens: 1024
       max-input-chars: 12000
       temperature: 0.2
-#      top-p: 0.9
+  #      top-p: 0.9
+  models:
+    difficulty-rate: 0.5
+    router-model:
+      base-url: https://rsfiaucrrl1yce-8005.proxy.runpod.net
+      auth-key: ${AUTH_KEY}
+      difficulty-path: /difficulty
+      summarize-path: /summarize
+      max-tokens: 256
+    llama-model:
+      base-url: ${LLAMA_BASE_URL}
+      auth-key: ${AUTH_KEY}
+      chat-path: /v1/chat/completions
+      model: "llama-3.1-8b-instruct"
+      max-tokens: 3024
+      temperature: 0.2
+    translator-model:
+      base-url: https://rsfiaucrrl1yce-8000.proxy.runpod.net
+      auth-key: ${AUTH_KEY}
+      translator-path: /translate
+    fitrat-model:
+      base-url: https://rsfiaucrrl1yce-8006.proxy.runpod.net
+      auth-key: ${AUTH_KEY}
+      normalize-path: /normalize
+      transliterate-path: /transliterate
+      tokenize-path: /tokenize
+      detect-path: /detect
+      healthz-path: /healthz
 
 # =========================
 # DEV profile: local Ollama

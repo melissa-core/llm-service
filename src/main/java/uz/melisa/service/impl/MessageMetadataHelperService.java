@@ -20,6 +20,7 @@ public class MessageMetadataHelperService {
     private final ObjectMapper objectMapper;
 
     public void saveClaude(Long chatId,
+                           Long messageId,
                            String conversationKey,
                            ClaudeResult result,
                            Double difficulty,
@@ -30,6 +31,7 @@ public class MessageMetadataHelperService {
 
         saveMessageMetadata(
                 chatId,
+                messageId,
                 conversationKey,
                 "claude",
                 result.getModel(),
@@ -53,6 +55,7 @@ public class MessageMetadataHelperService {
     }
 
     public void saveLlama(Long chatId,
+                          Long messageId,
                           String conversationKey,
                           LlamaChatResponseDTO llamaResp,
                           Double difficulty,
@@ -61,6 +64,7 @@ public class MessageMetadataHelperService {
 
         saveMessageMetadata(
                 chatId,
+                messageId,
                 conversationKey,
                 "llama",
                 trimToEmpty(llamaResp == null ? null : llamaResp.getModel()),
@@ -85,6 +89,7 @@ public class MessageMetadataHelperService {
 
     public void saveMessageMetadata(
             Long chatId,
+            Long messageId,
             String conversationKey,
             String provider,
             String model,
@@ -111,6 +116,7 @@ public class MessageMetadataHelperService {
 
         MessageMetadata meta = MessageMetadata.builder()
                 .chatId(chatId)
+                .messageId(messageId)
                 .conversationKey(trimToEmpty(conversationKey))
                 .provider(trimToEmpty(provider))
                 .model(trimToEmpty(model))

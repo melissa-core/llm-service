@@ -61,25 +61,25 @@ melisa:
   models:
     difficulty-rate: 0.5
     router-model:
-      base-url:
-      auth-key:
+      base-url: https://rsfiaucrrl1yce-8005.proxy.runpod.net
+      auth-key: dri6omaW89iswetraq1jich
       difficulty-path: /difficulty
       summarize-path: /summarize
-      max-tokens:
+      max-tokens: 512
     llama-model:
       base-url:
-      auth-key:
+      auth-key: dri6omaW89iswetraq1jich
       chat-path: /v1/chat/completions
       model: "llama-3.1-8b-instruct"
       max-tokens: 3024
       temperature: 0.2
     translator-model:
-      base-url:
-      auth-key:
+      base-url: https://rsfiaucrrl1yce-8000.proxy.runpod.net
+      auth-key: dri6omaW89iswetraq1jich
       translator-path: /translate
     fitrat-model:
-      base-url:
-      auth-key:
+      base-url: https://rsfiaucrrl1yce-8006.proxy.runpod.net
+      auth-key: dri6omaW89iswetraq1jich
       normalize-path: /normalize
       transliterate-path: /transliterate
       tokenize-path: /tokenize
