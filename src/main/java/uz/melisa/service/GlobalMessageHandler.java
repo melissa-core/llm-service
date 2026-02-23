@@ -7,19 +7,18 @@ import uz.melisa.config.ModelsProperties;
 import uz.melisa.domain.ChatMemory;
 import uz.melisa.dto.chat.ChatUserMessageDTO;
 import uz.melisa.dto.claude.ClaudeResult;
+import uz.melisa.dto.client.embedding.VoyageEmbeddingResponseDTO;
 import uz.melisa.dto.client.fitrat.FitratDetectLangResponseDTO;
 import uz.melisa.dto.client.fitrat.FitratTransliterateRequestDTO;
 import uz.melisa.dto.client.fitrat.FitratTransliterateResponseDTO;
 import uz.melisa.dto.client.llama.LlamaChatResponseDTO;
+import uz.melisa.dto.client.router.FoodIntentResponseDTO;
 import uz.melisa.dto.client.router.RateDifficultyResponseDTO;
 import uz.melisa.dto.client.translator.TranslatorTextRequestDTO;
 import uz.melisa.dto.client.translator.TranslatorTextResponseDTO;
 import uz.melisa.enums.MessageAuthorityType;
 import uz.melisa.repository.ChatMemoryRepository;
-import uz.melisa.service.client.FitratServiceClient;
-import uz.melisa.service.client.LlamaServiceClient;
-import uz.melisa.service.client.RouterServiceClient;
-import uz.melisa.service.client.TranslatorServiceClient;
+import uz.melisa.service.client.*;
 import uz.melisa.service.impl.ChatPostProcessService;
 import uz.melisa.util.StringUtil;
 
@@ -39,7 +38,13 @@ public class GlobalMessageHandler {
     private final ClaudeChatService claudeChatService;
     private final ChatMemoryRepository chatMemoryRepository;
     private final ChatPostProcessService chatPostProcessService;
+    private final EmbeddingClient embeddingClient;
+    private final EmbeddingService embeddingService;
 
+    //1. embedded message
+    //2. find product from table pg_vector
+    //3. give product to the model
+    //4. get model response and also go the getting product list
     public String handleChatMessage(ChatUserMessageDTO chatUserMessage) {
         Long chatId = chatUserMessage.getChatId();
         Long messageId = chatUserMessage.getMessageId();
@@ -51,10 +56,13 @@ public class GlobalMessageHandler {
         String requestLang = detected == null ? null : trimToEmpty(detected.getLang());
         String requestScript = resolveScript(requestLang);
 
-        RateDifficultyResponseDTO difficultyDto = routerServiceClient.rateDifficulty(input);
-        Double difficulty = difficultyDto == null ? null : difficultyDto.getDifficulty();
-
-        if (!isEasy(difficultyDto)) {
+        FoodIntentResponseDTO isFoodIntent = routerServiceClient.isFoodIntent(input);
+        if (validateFoodIntent(isFoodIntent)) {
+            VoyageEmbeddingResponseDTO embedded = embeddingClient.embed(input);
+            embeddingService.saveEmbedding(messageId, embedded, input);
+            //1. save embedding response async
+            //2. go to the catalog service with embedded vectors
+            //------
             String modelInput = buildModelInput(prevSummary, input);
             ClaudeResult result = claudeChatService.chatWithClaude(conversationKey, modelInput);
             String answer = result == null ? "" : trimToEmpty(result.getText());
@@ -114,6 +122,12 @@ public class GlobalMessageHandler {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private boolean validateFoodIntent(FoodIntentResponseDTO foodIntentResponseDTO) {
+        if (foodIntentResponseDTO == null || foodIntentResponseDTO.getIsFood() == null) return false;
+
+        return foodIntentResponseDTO.getIsFood();
     }
 
     private boolean isEasy(RateDifficultyResponseDTO dto) {

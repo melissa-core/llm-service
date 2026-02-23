@@ -17,5 +17,6 @@ public class ApplicationProperties {
     @Setter
     public static class Downstream {
         private String hmacSecret;
+        private String catalogServiceUrl;
     }
 }

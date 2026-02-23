@@ -33,6 +33,20 @@ public class RouterServiceClient {
         );
     }
 
+    public FoodIntentResponseDTO isFoodIntent(String message) {
+        ModelsProperties.RouterModel m = modelsProperties.getRouterModel();
+        String url = m.getBaseUrl() + m.getFoodIntentPath();
+        Map<String, String> headers = Map.of("x-api-key", m.getAuthKey());
+
+        return restSenderService.sendAndReceive(
+                url,
+                HttpMethod.POST,
+                new FoodIntentRequestDTO(message),
+                FoodIntentResponseDTO.class,
+                headers
+        );
+    }
+
     public SummarizeResponseDTO summarize(List<SummarizeMessageDTO> messages, String previousSummary) {
         ModelsProperties.RouterModel routerModel = modelsProperties.getRouterModel();
         String url = routerModel.getBaseUrl() + routerModel.getSummarizePath();

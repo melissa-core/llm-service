@@ -36,6 +36,7 @@ logging:
 application:
   downstream:
     hmacSecret: ${HMAC_SECRET:change-me-downstream-shared-secret}
+    catalog-service-url: ${CATALOG_SERVICE_URL:http://localhost:8077}
 
 eureka:
   client:
@@ -85,6 +86,12 @@ melisa:
       tokenize-path: /tokenize
       detect-path: /detect
       healthz-path: /healthz
+    voyage-embedding:
+      base-url: https://api.voyageai.com/v1/embeddings
+      secret-key: ${SECRET_KEY}
+      model: voyage-multilingual-2
+      input-query-type: query
+      input-document-type: document
 
 ---
 spring:

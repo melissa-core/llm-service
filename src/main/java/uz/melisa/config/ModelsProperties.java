@@ -16,6 +16,7 @@ public class ModelsProperties {
     private LlamaModel llamaModel;
     private TranslatorModel translatorModel;
     private FitratModel fitratModel;
+    private VoyageEmbedding voyageEmbedding;
 
     @Getter
     @Setter
@@ -25,7 +26,7 @@ public class ModelsProperties {
 
         private String difficultyPath;
         private String summarizePath;
-
+        private String foodIntentPath;
         private Integer maxTokens;
     }
 
@@ -61,5 +62,15 @@ public class ModelsProperties {
         private String tokenizePath;
         private String detectPath;
         private String healthzPath;
+    }
+
+    @Getter
+    @Setter
+    public static class VoyageEmbedding {
+        private String baseUrl;
+        private String secretKey;
+        private String model;
+        private String inputQueryType;
+        private String inputDocumentType;
     }
 }
