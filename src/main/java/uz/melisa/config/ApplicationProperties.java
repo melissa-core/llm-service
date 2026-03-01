@@ -12,11 +12,18 @@ import org.springframework.validation.annotation.Validated;
 public class ApplicationProperties {
 
     private Downstream downstream;
+    private Catalog catalog;
 
     @Getter
     @Setter
     public static class Downstream {
         private String hmacSecret;
+    }
+
+    @Getter
+    @Setter
+    public static class Catalog {
         private String catalogServiceUrl;
+        private String catalogEmbeddingPath;
     }
 }

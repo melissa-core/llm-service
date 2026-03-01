@@ -7,6 +7,8 @@ import uz.melisa.config.ModelsProperties;
 import uz.melisa.domain.ChatMemory;
 import uz.melisa.dto.chat.ChatUserMessageDTO;
 import uz.melisa.dto.claude.ClaudeResult;
+import uz.melisa.dto.client.catalog.EmbeddingProductSearchRequestDTO;
+import uz.melisa.dto.client.catalog.ProductDTO;
 import uz.melisa.dto.client.embedding.VoyageEmbeddingResponseDTO;
 import uz.melisa.dto.client.fitrat.FitratDetectLangResponseDTO;
 import uz.melisa.dto.client.fitrat.FitratTransliterateRequestDTO;
@@ -16,13 +18,18 @@ import uz.melisa.dto.client.router.FoodIntentResponseDTO;
 import uz.melisa.dto.client.router.RateDifficultyResponseDTO;
 import uz.melisa.dto.client.translator.TranslatorTextRequestDTO;
 import uz.melisa.dto.client.translator.TranslatorTextResponseDTO;
+import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.enums.MessageAuthorityType;
 import uz.melisa.repository.ChatMemoryRepository;
 import uz.melisa.service.client.*;
 import uz.melisa.service.impl.ChatPostProcessService;
 import uz.melisa.util.StringUtil;
 
+import java.util.List;
+
 import static uz.melisa.constants.LanguageConstants.*;
+import static uz.melisa.util.LangUtil.currentLang;
+import static uz.melisa.util.SecurityUtil.getCurrentUserId;
 import static uz.melisa.util.StringUtil.trimToEmpty;
 
 @Service
@@ -40,12 +47,11 @@ public class GlobalMessageHandler {
     private final ChatPostProcessService chatPostProcessService;
     private final EmbeddingClient embeddingClient;
     private final EmbeddingService embeddingService;
+    private final CatalogServiceClient catalogServiceClient;
+    private final MessageProductSuggestionService messageProductSuggestionService;
 
-    //1. embedded message
-    //2. find product from table pg_vector
-    //3. give product to the model
-    //4. get model response and also go the getting product list
     public String handleChatMessage(ChatUserMessageDTO chatUserMessage) {
+        Long userId = getCurrentUserId();
         Long chatId = chatUserMessage.getChatId();
         Long messageId = chatUserMessage.getMessageId();
         String input = trimToEmpty(chatUserMessage.getMessage());
@@ -58,24 +64,29 @@ public class GlobalMessageHandler {
 
         FoodIntentResponseDTO isFoodIntent = routerServiceClient.isFoodIntent(input);
         if (validateFoodIntent(isFoodIntent)) {
-            VoyageEmbeddingResponseDTO embedded = embeddingClient.embed(input);
-            embeddingService.saveEmbedding(messageId, embedded, input);
-            //1. save embedding response async
-            //2. go to the catalog service with embedded vectors
-            //------
-            String modelInput = buildModelInput(prevSummary, input);
-            ClaudeResult result = claudeChatService.chatWithClaude(conversationKey, modelInput);
-            String answer = result == null ? "" : trimToEmpty(result.getText());
-
-            chatPostProcessService.processClaude(
-                    chatId, messageId, conversationKey, input, answer,
-                    difficulty, requestLang, requestScript, result
-            );
-
-            chatPostProcessService.processLangDetection(detected, chatId, messageId,
-                    requestLang, requestScript, MessageAuthorityType.USER,
-                    (detected == null || detected.getRequestText() == null) ? "" : trimToEmpty(detected.getRequestText()));
-            return answer;
+            VoyageEmbeddingResponseDTO embedded = performVoyageEmbedding(input, messageId);
+            if (embedded.getData() != null && !embedded.getData().isEmpty()) {
+                CommonResponse<List<ProductDTO>> embeddingToProduct = catalogServiceClient.embeddingToProduct(userId,
+                        buildEmbeddingProductSearchRequest(embedded)
+                );
+                List<ProductDTO> products = (embeddingToProduct != null && embeddingToProduct.getData() != null) ? embeddingToProduct.getData() : List.of();
+                messageProductSuggestionService.saveProductSuggestion(messageId,
+                        products.stream().map(ProductDTO::getId).toList());
+                if (products.size() > 5) {
+                    products = products.subList(0, 5);
+                }
+                String modelInput = buildModelInput(prevSummary, input, products);
+                ClaudeResult result = claudeChatService.chatWithClaude(conversationKey, modelInput);
+                String answer = result == null ? "" : trimToEmpty(result.getText());
+                chatPostProcessService.processClaude(
+                        chatId, messageId, conversationKey, input, answer,
+                        isFoodIntent.getIsFood(), requestLang, requestScript, modelInput, result
+                );
+                chatPostProcessService.processLangDetection(detected, chatId, messageId,
+                        requestLang, requestScript, MessageAuthorityType.USER,
+                        (detected == null || detected.getRequestText() == null) ? "" : trimToEmpty(detected.getRequestText()));
+                return answer;
+            }
         }
 
         if (!isUzbek(requestLang)) {
@@ -84,7 +95,7 @@ public class GlobalMessageHandler {
 
             chatPostProcessService.processLlama(
                     chatId, messageId, conversationKey, input, answer,
-                    difficulty, requestLang, requestScript, llamaResp
+                    isFoodIntent.getIsFood(), requestLang, requestScript, llamaResp
             );
 
             chatPostProcessService.processLangDetection(detected, chatId, messageId,
@@ -107,13 +118,25 @@ public class GlobalMessageHandler {
 
         chatPostProcessService.processLlama(
                 chatId, messageId, conversationKey, input, trimToEmpty(finalAnswer),
-                difficulty, requestLang, requestScript, llamaResp
+                isFoodIntent.getIsFood(), requestLang, requestScript, llamaResp
         );
 
         chatPostProcessService.processLangDetection(detected, chatId, messageId,
                 requestLang, requestScript, MessageAuthorityType.USER,
                 (detected == null || detected.getRequestText() == null) ? "" : trimToEmpty(detected.getRequestText()));
         return trimToEmpty(finalAnswer);
+    }
+
+    private EmbeddingProductSearchRequestDTO buildEmbeddingProductSearchRequest(VoyageEmbeddingResponseDTO embedded) {
+        return new EmbeddingProductSearchRequestDTO(
+                toFloatArray(embedded.getData().getFirst().getEmbedding()), 50, currentLang()
+        );
+    }
+
+    private VoyageEmbeddingResponseDTO performVoyageEmbedding(String input, Long messageId) {
+        VoyageEmbeddingResponseDTO embedded = embeddingClient.embed(input);
+        embeddingService.saveEmbedding(messageId, embedded, input);
+        return embedded;
     }
 
     private FitratDetectLangResponseDTO tryDetectLang(String text) {
@@ -133,6 +156,16 @@ public class GlobalMessageHandler {
     private boolean isEasy(RateDifficultyResponseDTO dto) {
         if (dto == null) return false;
         return dto.getDifficulty() <= modelsProperties.getDifficultyRate();
+    }
+
+    private static float[] toFloatArray(List<Float> list) {
+        if (list == null || list.isEmpty()) return new float[0];
+        float[] arr = new float[list.size()];
+        for (int i = 0; i < list.size(); i++) {
+            Float v = list.get(i);
+            arr[i] = (v == null) ? 0f : v;
+        }
+        return arr;
     }
 
     private boolean isUzbek(String lang) {
@@ -182,5 +215,54 @@ public class GlobalMessageHandler {
         String user = trimToEmpty(userText);
         if (summary.isEmpty()) return user;
         return "Summary:\n" + summary + "\n\nUser:\n" + user;
+    }
+
+    private String buildModelInput(String prevSummary, String userText, List<ProductDTO> products) {
+        String summary = trimToEmpty(prevSummary);
+        String user = trimToEmpty(userText);
+
+        StringBuilder sb = new StringBuilder(1024);
+
+        if (!summary.isEmpty()) {
+            sb.append("Summary:\n").append(summary).append("\n\n");
+        }
+
+        sb.append("User:\n").append(user).append("\n\n");
+
+        sb.append("CandidateProducts (max 5, use ONLY these for recommendations):\n");
+
+        if (products == null || products.isEmpty()) {
+            sb.append("[NONE]\n");
+        } else {
+            for (int i = 0; i < products.size(); i++) {
+                ProductDTO p = products.get(i);
+
+                sb.append(i + 1).append(") ")
+                        .append(safe(p.getName()))
+                        .append(" | price=").append(p.getPrice() == null ? "N/A" : p.getPrice()).append(" UZS")
+                        .append(" | category=").append(p.getCategory() == null ? "N/A" : p.getCategory())
+                        .append(" | tags=").append(p.getTags() == null ? "N/A" : p.getTags())
+                        .append("\n")
+                        .append("   desc: ").append(truncate(safe(p.getDescription()), 180))
+                        .append("\n");
+            }
+        }
+
+        sb.append("\nInstructions:\n")
+                .append("- If CandidateProducts is [NONE], do NOT invent products. Give general advice and ask 1 short follow-up question.\n")
+                .append("- If products exist, rank them best->worst for the user’s request and explain briefly why.\n")
+                .append("- Do not mention databases, embeddings, vectors, or internal systems.\n");
+
+        return sb.toString();
+    }
+
+    private String safe(String s) {
+        return s == null ? "" : s.trim();
+    }
+
+    private String truncate(String s, int max) {
+        if (s == null) return "";
+        if (s.length() <= max) return s;
+        return s.substring(0, max - 3) + "...";
     }
 }

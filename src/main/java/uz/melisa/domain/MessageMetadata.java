@@ -44,8 +44,11 @@ public class MessageMetadata extends AuditingEntity {
     @Column(name = "finish_reason", length = 64)
     private String finishReason;
 
-    @Column(name = "difficulty")
-    private Double difficulty;
+    @Column(name = "is_food_content")
+    private boolean isFoodContent;
+
+    @Column(name = "request_raw", columnDefinition = "TEXT")
+    private String requestRaw;
 
     @Column(name = "detected_lang", length = 32)
     private String detectedLang;

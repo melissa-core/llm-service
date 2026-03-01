@@ -14,7 +14,7 @@ import java.util.List;
 @Entity
 @Table(name = "embedding_details")
 @Builder
-public class EmbeddingDetails {
+public class EmbeddingDetails extends AuditingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

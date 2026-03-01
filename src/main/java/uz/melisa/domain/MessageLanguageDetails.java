@@ -11,7 +11,7 @@ import uz.melisa.enums.MessageAuthorityType;
 @Entity
 @Table(name = "message_language_details")
 @Builder
-public class MessageLanguageDetails {
+public class MessageLanguageDetails extends AuditingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

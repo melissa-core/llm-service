@@ -1,5 +1,6 @@
 package uz.melisa.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -20,6 +21,7 @@ import uz.melisa.util.StringUtil;
 
 import java.util.List;
 
+import static uz.melisa.constants.PrivacyConstants.SYSTEM_COMMAND;
 import static uz.melisa.util.StringUtil.trimToEmpty;
 
 @Service
@@ -33,6 +35,7 @@ public class ChatPostProcessService {
     private final MessageMetadataHelperService messageMetadataHelperService;
     private final RouterServiceClient routerServiceClient;
     private final ChatMemoryRepository chatMemoryRepository;
+    private final ObjectMapper objectMapper;
     private final MessageLanguageDetailsRepository messageLanguageDetailsRepository;
 
     @Async("postProcessExecutor")
@@ -42,15 +45,17 @@ public class ChatPostProcessService {
                               String conversationKey,
                               String userText,
                               String assistantText,
-                              Double difficulty,
+                              boolean isFoodContent,
+                              String modelInput,
                               String requestLang,
                               String requestScript,
                               ClaudeResult result) {
         if (chatId == null) return;
 
         try {
+            String requestRaw = buildClaudeRequestRaw(conversationKey, SYSTEM_COMMAND, modelInput);
             messageMetadataHelperService.saveClaude(
-                    chatId, messageId, conversationKey, result, difficulty, requestLang, requestScript
+                    chatId, messageId, conversationKey, result, requestRaw, isFoodContent, requestLang, requestScript
             );
         } catch (Exception e) {
             log.warn("metadata save failed chatId={} provider=claude", chatId, e);
@@ -70,7 +75,7 @@ public class ChatPostProcessService {
                              String conversationKey,
                              String userText,
                              String assistantText,
-                             Double difficulty,
+                             boolean isFoodContent,
                              String requestLang,
                              String requestScript,
                              LlamaChatResponseDTO llamaResp) {
@@ -78,7 +83,7 @@ public class ChatPostProcessService {
 
         try {
             messageMetadataHelperService.saveLlama(
-                    chatId, messageId, conversationKey, llamaResp, difficulty, requestLang, requestScript
+                    chatId, messageId, conversationKey, llamaResp, isFoodContent, requestLang, requestScript
             );
         } catch (Exception e) {
             log.warn("metadata save failed chatId={} provider=llama", chatId, e);
@@ -108,6 +113,18 @@ public class ChatPostProcessService {
             messageLanguageDetailsRepository.save(languageDetails);
         } catch (Exception e) {
             log.warn("metadata save failed chatId={} provider=languageDetails", chatId, e);
+        }
+    }
+
+    private String buildClaudeRequestRaw(String conversationKey, String system, String safeInput) {
+        try {
+            var node = objectMapper.createObjectNode();
+            node.put("conversationKey", conversationKey);
+            node.put("system", system);
+            node.put("user", safeInput);
+            return objectMapper.writeValueAsString(node);
+        } catch (Exception e) {
+            return null;
         }
     }
 

@@ -1,19 +1,23 @@
 package uz.melisa.dto.common;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import uz.melisa.enums.ApiResponseStatus;
 
 @Data
+@NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CommonResponse<T> {
 
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     private T data;
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     private String errorMessage;
+
     @JsonIgnore
     private ApiResponseStatus status;
 

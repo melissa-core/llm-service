@@ -45,6 +45,9 @@ eureka:
 application:
   downstream:
     hmacSecret: ${HMAC_SECRET}
+  catalog:
+    catalog-service-url: ${CATALOG_SERVICE_URL}
+    catalog-embedding-path: /api/v1/embeddings
 
 # --- Your own service-level settings (optional but useful) ---
 melisa:
@@ -62,11 +65,12 @@ melisa:
   models:
     difficulty-rate: 0.5
     router-model:
-      base-url: https://rsfiaucrrl1yce-8005.proxy.runpod.net
+      base-url: ${ROUTER_MODEL_URL}
       auth-key: ${AUTH_KEY}
       difficulty-path: /difficulty
       summarize-path: /summarize
       max-tokens: 256
+      food-intent-path: /food-intent
     llama-model:
       base-url: ${LLAMA_BASE_URL}
       auth-key: ${AUTH_KEY}
@@ -75,17 +79,23 @@ melisa:
       max-tokens: 3024
       temperature: 0.2
     translator-model:
-      base-url: https://rsfiaucrrl1yce-8000.proxy.runpod.net
+      base-url: ${TRANSLATOR_MODEL_URL}
       auth-key: ${AUTH_KEY}
       translator-path: /translate
     fitrat-model:
-      base-url: https://rsfiaucrrl1yce-8006.proxy.runpod.net
+      base-url: ${FITRAT_MODEL_URL}
       auth-key: ${AUTH_KEY}
       normalize-path: /normalize
       transliterate-path: /transliterate
       tokenize-path: /tokenize
       detect-path: /detect
       healthz-path: /healthz
+    voyage-embedding:
+      base-url: https://api.voyageai.com/v1/embeddings
+      secret-key: ${EMBEDDING_SECRET_KEY}
+      model: voyage-multilingual-2
+      input-query-type: query
+      input-document-type: document
 
 # =========================
 # DEV profile: local Ollama

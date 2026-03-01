@@ -23,7 +23,8 @@ public class MessageMetadataHelperService {
                            Long messageId,
                            String conversationKey,
                            ClaudeResult result,
-                           Double difficulty,
+                           String requestRaw,
+                           boolean isFoodContent,
                            String requestLang,
                            String requestScript) {
 
@@ -38,7 +39,8 @@ public class MessageMetadataHelperService {
                 result.getResponseId(),
                 null,
                 result.getFinishReason(),
-                difficulty,
+                requestRaw,
+                isFoodContent,
                 requestLang,
                 requestScript,
                 result.getPromptTokens(),
@@ -58,7 +60,7 @@ public class MessageMetadataHelperService {
                           Long messageId,
                           String conversationKey,
                           LlamaChatResponseDTO llamaResp,
-                          Double difficulty,
+                          boolean isFoodContent,
                           String requestLang,
                           String requestScript) {
 
@@ -71,7 +73,8 @@ public class MessageMetadataHelperService {
                 llamaResp == null ? null : llamaResp.getId(),
                 llamaResp == null ? null : llamaResp.getCreated(),
                 extractFinishReason(llamaResp),
-                difficulty,
+                null,
+                isFoodContent,
                 requestLang,
                 requestScript,
                 promptTokens(llamaResp),
@@ -96,7 +99,8 @@ public class MessageMetadataHelperService {
             String responseId,
             Long createdEpoch,
             String finishReason,
-            Double difficulty,
+            String requestRaw,
+            boolean isFoodContent,
             String requestLang,
             String requestScript,
             Integer promptTokens,
@@ -123,7 +127,8 @@ public class MessageMetadataHelperService {
                 .responseId(responseId)
                 .createdEpoch(createdEpoch)
                 .finishReason(trimToEmpty(finishReason))
-                .difficulty(difficulty)
+                .requestRaw(trimToEmpty(requestRaw))
+                .isFoodContent(isFoodContent)
                 .detectedLang(trimToEmpty(requestLang))
                 .detectedScript(trimToEmpty(requestScript))
                 .promptTokens(promptTokens)
