@@ -10,6 +10,8 @@ import uz.melisa.exp.BadRequestException;
 import uz.melisa.repository.ChatRepository;
 import uz.melisa.repository.MessageRepository;
 
+import java.util.Map;
+
 import static uz.melisa.util.ChatUtil.buildChatByDeviceId;
 import static uz.melisa.util.MessageUtil.buildModelMessage;
 import static uz.melisa.util.MessageUtil.buildUserMessage;
@@ -47,8 +49,11 @@ public class GuestMessageHelperService {
     }
 
     @Transactional
-    public Message saveGuestModelMessage(Long chatId, String modelText) {
-        Message modelMessage = messageRepository.save(buildModelMessage(modelText, chatId, null));
+    public Message saveGuestModelMessage(Long chatId, Map<Boolean, String> modelResponse) {
+        Map.Entry<Boolean, String> entry = modelResponse.entrySet().iterator().next();
+        Boolean hasSuggestions = entry.getKey();
+        String modelText = entry.getValue();
+        Message modelMessage = messageRepository.save(buildModelMessage(modelText, hasSuggestions, chatId, null));
         messageRepository.flush();
         return modelMessage;
     }

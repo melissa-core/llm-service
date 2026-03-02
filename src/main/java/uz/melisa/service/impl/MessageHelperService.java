@@ -43,8 +43,8 @@ public class MessageHelperService {
     }
 
     @Transactional
-    public Message saveModelMessage(Long chatId, Long userId, String modelText) {
-        Message modelMessage = messageRepository.save(buildModelMessage(modelText, chatId, userId));
+    public Message saveModelMessage(Long chatId, Long userId, String modelText, Boolean hasSuggestions) {
+        Message modelMessage = messageRepository.save(buildModelMessage(modelText, hasSuggestions, chatId, userId));
         messageRepository.flush();
         return modelMessage;
     }

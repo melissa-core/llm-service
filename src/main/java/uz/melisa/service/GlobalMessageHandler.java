@@ -26,6 +26,7 @@ import uz.melisa.service.impl.ChatPostProcessService;
 import uz.melisa.util.StringUtil;
 
 import java.util.List;
+import java.util.Map;
 
 import static uz.melisa.constants.LanguageConstants.*;
 import static uz.melisa.util.LangUtil.currentLang;
@@ -50,7 +51,7 @@ public class GlobalMessageHandler {
     private final CatalogServiceClient catalogServiceClient;
     private final MessageProductSuggestionService messageProductSuggestionService;
 
-    public String handleChatMessage(ChatUserMessageDTO chatUserMessage) {
+    public Map<Boolean, String> handleChatMessage(ChatUserMessageDTO chatUserMessage) {
         Long userId = getCurrentUserId();
         Long chatId = chatUserMessage.getChatId();
         Long messageId = chatUserMessage.getMessageId();
@@ -85,7 +86,7 @@ public class GlobalMessageHandler {
                 chatPostProcessService.processLangDetection(detected, chatId, messageId,
                         requestLang, requestScript, MessageAuthorityType.USER,
                         (detected == null || detected.getRequestText() == null) ? "" : trimToEmpty(detected.getRequestText()));
-                return answer;
+                return Map.of(true, answer);
             }
         }
 
@@ -101,7 +102,7 @@ public class GlobalMessageHandler {
             chatPostProcessService.processLangDetection(detected, chatId, messageId,
                     requestLang, requestScript, MessageAuthorityType.USER,
                     (detected == null || detected.getRequestText() == null) ? "" : trimToEmpty(detected.getRequestText()));
-            return answer;
+            return Map.of(false, answer);
         }
 
         boolean wasCyril = UZ_CYRIL.equals(requestLang);
@@ -124,7 +125,7 @@ public class GlobalMessageHandler {
         chatPostProcessService.processLangDetection(detected, chatId, messageId,
                 requestLang, requestScript, MessageAuthorityType.USER,
                 (detected == null || detected.getRequestText() == null) ? "" : trimToEmpty(detected.getRequestText()));
-        return trimToEmpty(finalAnswer);
+        return Map.of(false, trimToEmpty(finalAnswer));
     }
 
     private EmbeddingProductSearchRequestDTO buildEmbeddingProductSearchRequest(VoyageEmbeddingResponseDTO embedded) {

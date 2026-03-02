@@ -15,6 +15,8 @@ import uz.melisa.repository.MessageRepository;
 import uz.melisa.service.GlobalMessageHandler;
 import uz.melisa.service.MessageService;
 
+import java.util.Map;
+
 import static uz.melisa.util.SecurityUtil.getCurrentUserId;
 
 @Service
@@ -32,10 +34,11 @@ public class MessageServiceImpl implements MessageService {
 
         ChatUserMessageDTO chatUserMessage = messageHelperService.saveChatAndUserMessage(req, userId);
 
-        String modelText = globalMessageHandler.handleChatMessage(chatUserMessage);
-
-        Message modelMessage = messageHelperService.saveModelMessage(chatUserMessage.getChatId(), userId, modelText);
-
+        Map<Boolean, String> modelResponse = globalMessageHandler.handleChatMessage(chatUserMessage);
+        Map.Entry<Boolean, String> entry = modelResponse.entrySet().iterator().next();
+        Boolean hasSuggestions = entry.getKey();
+        String modelText = entry.getValue();
+        Message modelMessage = messageHelperService.saveModelMessage(chatUserMessage.getChatId(), userId, modelText, hasSuggestions);
         return CommonResponse.success(
                 new MessageResponseDTO(modelMessage.getText(), chatUserMessage.getChatId(), chatUserMessage.getMessageId(), modelMessage.getId())
         );

@@ -19,6 +19,8 @@ import uz.melisa.repository.MessageRepository;
 import uz.melisa.service.GlobalMessageHandler;
 import uz.melisa.service.GuestService;
 
+import java.util.Map;
+
 import static uz.melisa.util.StringUtil.trimToEmpty;
 
 @Service
@@ -43,13 +45,13 @@ public class GuestServiceImpl implements GuestService {
         Chat chat = guestMessageHelperService.saveOrGetGuestChat(device, messageText);
         Message message = guestMessageHelperService.saveGuestUserMessage(chat.getId(), messageText);
 
-        String modelResponse = globalMessageHandler.handleChatMessage(new ChatUserMessageDTO(
+        Map<Boolean, String> modelResponse = globalMessageHandler.handleChatMessage(new ChatUserMessageDTO(
                 chat.getId(), message.getId(), messageText
         ));
 
-        guestMessageHelperService.saveGuestModelMessage(chat.getId(), modelResponse);
+        Message savedMessage = guestMessageHelperService.saveGuestModelMessage(chat.getId(), modelResponse);
 
-        return CommonResponse.success(new GuestMessageResponseDTO(modelResponse));
+        return CommonResponse.success(new GuestMessageResponseDTO(savedMessage.getText()));
     }
 
     @Transactional(readOnly = true)

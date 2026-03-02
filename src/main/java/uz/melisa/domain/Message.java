@@ -40,5 +40,7 @@ public class Message extends AuditingEntity {
 
     private Long userId;
 
+    private boolean hasProductSuggestions = false;
+
     private boolean isDeleted;
 }

@@ -1,5 +1,6 @@
 package uz.melisa.controller;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ public class ProductSuggestionController {
 
     private final MessageProductSuggestionService messageProductSuggestionService;
 
+    @Hidden
     @GetMapping("/{id}/products")
     public ResponseEntity<CommonResponse<List<ProductSuggestionDTO>>> getProductSuggestions(
             @PathVariable Long id
