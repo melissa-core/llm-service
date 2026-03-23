@@ -1,12 +1,11 @@
-package uz.melisa.service;
+package uz.melisa.config;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-import uz.melisa.config.ApplicationProperties;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -15,10 +14,10 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Service
+@Configuration
 @Slf4j
 @RequiredArgsConstructor
-public class GlobalProxyService {
+public class GlobalProxyConfig {
 
     private final ApplicationProperties props;
 

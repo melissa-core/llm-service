@@ -9,7 +9,7 @@ import uz.melisa.config.ApplicationProperties;
 import uz.melisa.dto.client.catalog.EmbeddingProductSearchRequestDTO;
 import uz.melisa.dto.client.catalog.ProductDTO;
 import uz.melisa.dto.common.CommonResponse;
-import uz.melisa.service.GlobalProxyService;
+import uz.melisa.config.GlobalProxyConfig;
 import uz.melisa.service.RestSenderService;
 
 import java.util.List;
@@ -21,12 +21,12 @@ import java.util.Map;
 public class CatalogServiceClient {
 
     private final ApplicationProperties applicationProperties;
-    private final GlobalProxyService globalProxyService;
+    private final GlobalProxyConfig globalProxyConfig;
     private final RestSenderService restSenderService;
 
     public CommonResponse<List<ProductDTO>> embeddingToProduct(Long userId, EmbeddingProductSearchRequestDTO request) {
         ApplicationProperties.Catalog catalog = applicationProperties.getCatalog();
-        Map<String, String> headers = globalProxyService.buildInternalHeaders(userId);
+        Map<String, String> headers = globalProxyConfig.buildInternalHeaders(userId);
         String url = catalog.getCatalogServiceUrl() + catalog.getCatalogEmbeddingPath();
         return restSenderService.sendAndReceive(
                 url,
