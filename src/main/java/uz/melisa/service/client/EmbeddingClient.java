@@ -22,6 +22,7 @@ public class EmbeddingClient {
 
     public VoyageEmbeddingResponseDTO embed(String input) {
         VoyageEmbeddingRequestDTO request = buildRequest(input);
+        log.info("The embedding request : {}", request);
         ModelsProperties.VoyageEmbedding m = modelsProperties.getVoyageEmbedding();
         String url = m.getBaseUrl();
         String authHeader = "Bearer " + m.getSecretKey();

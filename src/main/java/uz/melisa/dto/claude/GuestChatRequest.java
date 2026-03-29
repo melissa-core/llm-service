@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ClaudeChatRequest {
+public class GuestChatRequest {
     @NotBlank
     private String message;
 }

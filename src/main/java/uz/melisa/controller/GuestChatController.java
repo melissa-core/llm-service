@@ -11,7 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import uz.melisa.dto.chat.ChatMessagesDTO;
-import uz.melisa.dto.claude.ClaudeChatRequest;
+import uz.melisa.dto.claude.GuestChatRequest;
 import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.dto.guest.GuestMessageResponseDTO;
 import uz.melisa.service.GuestService;
@@ -28,7 +28,7 @@ public class GuestChatController {
     @PostMapping(value = "/free-chat", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<CommonResponse<GuestMessageResponseDTO>> chat(
             @RequestHeader(value = "X-Device-Id") String deviceId,
-            @Valid @RequestBody ClaudeChatRequest request) {
+            @Valid @RequestBody GuestChatRequest request) {
         log.info("REST request to free chat : {}", request);
         return ResponseUtil.buildResponseDTO(guestService.guestSendMessage(deviceId, request));
     }

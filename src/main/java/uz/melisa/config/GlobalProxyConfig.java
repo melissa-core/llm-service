@@ -6,11 +6,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import uz.melisa.util.DownstreamHmacSigner;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -19,7 +16,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class GlobalProxyConfig {
 
-    private final ApplicationProperties props;
+    private final DownstreamHmacSigner downstreamHmacSigner;
 
     public Map<String, String> buildInternalHeaders(Long userId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -33,22 +30,12 @@ public class GlobalProxyConfig {
         }
 
         String payload = userId + "|" + roles;
-        String signature = hmacSha256Base64(payload, props.getDownstream().getHmacSecret());
+        String signature = downstreamHmacSigner.signBase64(payload);
 
         return Map.of(
                 "X-User-Id", String.valueOf(userId),
                 "X-User-Roles", roles,
                 "X-Auth-Signature", signature
         );
-    }
-
-    private static String hmacSha256Base64(String data, String secret) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            return Base64.getEncoder().encodeToString(mac.doFinal(data.getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        }
     }
 }

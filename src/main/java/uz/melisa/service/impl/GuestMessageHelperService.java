@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import uz.melisa.domain.Chat;
 import uz.melisa.domain.Message;
-import uz.melisa.exp.BadRequestException;
 import uz.melisa.repository.ChatRepository;
 import uz.melisa.repository.MessageRepository;
 
@@ -15,7 +14,6 @@ import java.util.Map;
 import static uz.melisa.util.ChatUtil.buildChatByDeviceId;
 import static uz.melisa.util.MessageUtil.buildModelMessage;
 import static uz.melisa.util.MessageUtil.buildUserMessage;
-import static uz.melisa.util.StringUtil.trimToEmpty;
 
 @Service
 @Slf4j
@@ -27,15 +25,9 @@ public class GuestMessageHelperService {
 
     @Transactional
     public Chat saveOrGetGuestChat(String deviceId, String messageText) {
-        String device = trimToEmpty(deviceId);
-        if (device.isEmpty()) throw new BadRequestException("Device id cannot be null or empty");
-
-        String text = trimToEmpty(messageText);
-        if (text.isEmpty()) throw new BadRequestException("Message cannot be null or empty");
-
-        return chatRepository.findTop1ByDeviceIdAndIsDeletedFalse(device)
+        return chatRepository.findTop1ByDeviceIdAndIsDeletedFalse(deviceId)
                 .orElseGet(() -> {
-                    Chat created = chatRepository.save(buildChatByDeviceId(device, text));
+                    Chat created = chatRepository.save(buildChatByDeviceId(deviceId, messageText));
                     chatRepository.flush();
                     return created;
                 });

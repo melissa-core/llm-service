@@ -8,18 +8,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import uz.melisa.domain.ChatMemory;
 import uz.melisa.domain.MessageLanguageDetails;
-import uz.melisa.dto.claude.ClaudeResult;
+import uz.melisa.dto.claude.AIResult;
 import uz.melisa.dto.client.fitrat.FitratDetectLangResponseDTO;
 import uz.melisa.dto.client.llama.LlamaChatResponseDTO;
-import uz.melisa.dto.client.router.SummarizeMessageDTO;
-import uz.melisa.dto.client.router.SummarizeResponseDTO;
 import uz.melisa.enums.MessageAuthorityType;
 import uz.melisa.repository.ChatMemoryRepository;
 import uz.melisa.repository.MessageLanguageDetailsRepository;
-import uz.melisa.service.client.RouterServiceClient;
+import uz.melisa.service.AiChatService;
 import uz.melisa.util.StringUtil;
-
-import java.util.List;
 
 import static uz.melisa.constants.PrivacyConstants.SYSTEM_COMMAND;
 import static uz.melisa.util.StringUtil.trimToEmpty;
@@ -29,14 +25,11 @@ import static uz.melisa.util.StringUtil.trimToEmpty;
 @Slf4j
 public class ChatPostProcessService {
 
-    private static final String ROLE_USER = "user";
-    private static final String ROLE_ASSISTANT = "assistant";
-
     private final MessageMetadataHelperService messageMetadataHelperService;
-    private final RouterServiceClient routerServiceClient;
     private final ChatMemoryRepository chatMemoryRepository;
     private final ObjectMapper objectMapper;
     private final MessageLanguageDetailsRepository messageLanguageDetailsRepository;
+    private final AiChatService aiChatService;
 
     @Async("postProcessExecutor")
     @Transactional
@@ -49,7 +42,7 @@ public class ChatPostProcessService {
                               String modelInput,
                               String requestLang,
                               String requestScript,
-                              ClaudeResult result) {
+                              AIResult result) {
         if (chatId == null) return;
 
         try {
@@ -102,6 +95,7 @@ public class ChatPostProcessService {
                                      Long messageId, String detectedLang, String detectedScript,
                                      MessageAuthorityType messageAuthorityType, String text) {
         if (langDetectResp == null) return;
+
         MessageLanguageDetails languageDetails = new MessageLanguageDetails();
         languageDetails.setChatId(chatId);
         languageDetails.setMessageId(messageId);
@@ -134,14 +128,13 @@ public class ChatPostProcessService {
                 .map(StringUtil::trimToEmpty)
                 .orElse("");
 
-        List<SummarizeMessageDTO> msgs = List.of(
-                new SummarizeMessageDTO(ROLE_USER, trimToEmpty(userText)),
-                new SummarizeMessageDTO(ROLE_ASSISTANT, trimToEmpty(assistantText))
+        String summary = trimToEmpty(
+                aiChatService.summarize(prevSummary, userText, assistantText)
         );
 
-        SummarizeResponseDTO resp = routerServiceClient.summarize(msgs, prevSummary);
-        String summary = resp == null ? "" : trimToEmpty(resp.getSummary());
-        if (summary.isEmpty()) return;
+        if (summary.isEmpty()) {
+            return;
+        }
 
         ChatMemory mem = chatMemoryRepository.findByChatId(chatId)
                 .orElseGet(() -> ChatMemory.builder().chatId(chatId).build());

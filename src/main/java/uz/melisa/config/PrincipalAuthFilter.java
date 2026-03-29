@@ -12,21 +12,19 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import uz.melisa.util.DownstreamHmacSigner;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Arrays;
-import java.util.Base64;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class PrincipalAuthFilter extends OncePerRequestFilter {
 
-    private final ApplicationProperties props;
+    private final DownstreamHmacSigner downstreamHmacSigner;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -53,7 +51,7 @@ public class PrincipalAuthFilter extends OncePerRequestFilter {
         }
 
         String payload = userId + "|" + roles;
-        String expected = hmacSha256(payload, props.getDownstream().getHmacSecret());
+        String expected = downstreamHmacSigner.signBase64(payload);
 
         if (!MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), sig.getBytes(StandardCharsets.UTF_8))) {
             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -70,15 +68,5 @@ public class PrincipalAuthFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         chain.doFilter(req, res);
-    }
-
-    private String hmacSha256(String data, String secret) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            return Base64.getEncoder().encodeToString(mac.doFinal(data.getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        }
     }
 }

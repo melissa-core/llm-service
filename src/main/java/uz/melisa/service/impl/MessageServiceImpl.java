@@ -31,10 +31,8 @@ public class MessageServiceImpl implements MessageService {
     @Override
     public CommonResponse<MessageResponseDTO> sendMessage(MessageSendRequestDTO req) {
         Long userId = getCurrentUserId();
-
         ChatUserMessageDTO chatUserMessage = messageHelperService.saveChatAndUserMessage(req, userId);
-
-        Map<Boolean, String> modelResponse = globalMessageHandler.handleChatMessage(chatUserMessage);
+        Map<Boolean, String> modelResponse = globalMessageHandler.handleChatMessage(chatUserMessage, userId);
         Map.Entry<Boolean, String> entry = modelResponse.entrySet().iterator().next();
         Boolean hasSuggestions = entry.getKey();
         String modelText = entry.getValue();

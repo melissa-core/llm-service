@@ -1,9 +1,9 @@
 package uz.melisa.dto.client.embedding;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.util.List;
 
@@ -13,7 +13,7 @@ import java.util.List;
 public class VoyageEmbeddingData {
 
     private String object;
-    @JsonIgnore
+    @ToString.Exclude
     private List<Float> embedding;
     private Integer index;
 }

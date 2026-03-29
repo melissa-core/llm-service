@@ -10,7 +10,7 @@ import uz.melisa.domain.Chat;
 import uz.melisa.domain.Message;
 import uz.melisa.dto.chat.ChatMessagesDTO;
 import uz.melisa.dto.chat.ChatUserMessageDTO;
-import uz.melisa.dto.claude.ClaudeChatRequest;
+import uz.melisa.dto.claude.GuestChatRequest;
 import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.dto.guest.GuestMessageResponseDTO;
 import uz.melisa.exp.BadRequestException;
@@ -30,12 +30,11 @@ public class GuestServiceImpl implements GuestService {
 
     private final GlobalMessageHandler globalMessageHandler;
     private final GuestMessageHelperService guestMessageHelperService;
-
     private final ChatRepository chatRepository;
     private final MessageRepository messageRepository;
 
     @Override
-    public CommonResponse<GuestMessageResponseDTO> guestSendMessage(String deviceId, ClaudeChatRequest request) {
+    public CommonResponse<GuestMessageResponseDTO> guestSendMessage(String deviceId, GuestChatRequest request) {
         String device = trimToEmpty(deviceId);
         if (device.isEmpty()) throw new BadRequestException("Device id cannot be null or empty");
 
@@ -47,7 +46,7 @@ public class GuestServiceImpl implements GuestService {
 
         Map<Boolean, String> modelResponse = globalMessageHandler.handleChatMessage(new ChatUserMessageDTO(
                 chat.getId(), message.getId(), messageText
-        ));
+        ), null);
 
         Message savedMessage = guestMessageHelperService.saveGuestModelMessage(chat.getId(), modelResponse);
 

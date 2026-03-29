@@ -9,8 +9,9 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
-import uz.melisa.config.ClaudeProperties;
+import uz.melisa.config.AiProperties;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,27 +25,43 @@ public class RedisChatMemoryRepository implements ChatMemoryRepository {
     private static final String IDS_KEY = "chatmem:ids";
 
     private final StringRedisTemplate redis;
-    private final ClaudeProperties claudeProperties;
-    private final ObjectMapper om = new ObjectMapper().findAndRegisterModules();
+    private final AiProperties aiProperties;
+    private final ObjectMapper om;
 
     @Override
     public List<String> findConversationIds() {
         Set<String> ids = redis.opsForSet().members(IDS_KEY);
-        return (ids == null) ? List.of() : new ArrayList<>(ids);
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> result = new ArrayList<>();
+        for (String id : ids) {
+            if (redis.hasKey(key(id))) {
+                result.add(id);
+            } else {
+                redis.opsForSet().remove(IDS_KEY, id);
+            }
+        }
+        return result;
     }
 
     @Override
     public List<Message> findByConversationId(String conversationId) {
         String key = key(conversationId);
         List<String> rows = redis.opsForList().range(key, 0, -1);
-        if (rows == null || rows.isEmpty()) return List.of();
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
 
         List<Message> out = new ArrayList<>(rows.size());
         for (String row : rows) {
             try {
-                StoredMsg m = om.readValue(row, StoredMsg.class);
-                Message restored = toMessage(m);
-                if (restored != null) out.add(restored);
+                StoredMsg stored = om.readValue(row, StoredMsg.class);
+                Message restored = toMessage(stored);
+                if (restored != null) {
+                    out.add(restored);
+                }
             } catch (Exception ignore) {
             }
         }
@@ -56,18 +73,22 @@ public class RedisChatMemoryRepository implements ChatMemoryRepository {
         String key = key(conversationId);
 
         redis.delete(key);
+
         if (messages != null && !messages.isEmpty()) {
             List<String> rows = new ArrayList<>(messages.size());
-            for (Message m : messages) {
-                if (m instanceof SystemMessage) continue;
-                rows.add(serialize(fromMessage(m)));
+            for (Message message : messages) {
+                if (message instanceof SystemMessage) {
+                    continue;
+                }
+                rows.add(serialize(fromMessage(message)));
             }
+
             if (!rows.isEmpty()) {
                 redis.opsForList().rightPushAll(key, rows);
             }
         }
 
-        redis.expire(key, java.time.Duration.ofSeconds(claudeProperties.getMemory().getTtlSeconds()));
+        redis.expire(key, Duration.ofSeconds(aiProperties.getMemory().getTtlSeconds()));
         redis.opsForSet().add(IDS_KEY, conversationId);
     }
 
@@ -89,19 +110,22 @@ public class RedisChatMemoryRepository implements ChatMemoryRepository {
         }
     }
 
-    private StoredMsg fromMessage(Message m) {
-        String type = m.getMessageType().name();
-        String content = (m.getText() == null) ? "" : m.getText();
+    private StoredMsg fromMessage(Message message) {
+        String type = message.getMessageType().name();
+        String content = message.getText() == null ? "" : message.getText();
         return new StoredMsg(type, content, Instant.now().toEpochMilli());
     }
 
-    private Message toMessage(StoredMsg m) {
-        if (m == null) return null;
-        String t = (m.t == null) ? "" : m.t.toUpperCase();
+    private Message toMessage(StoredMsg stored) {
+        if (stored == null) {
+            return null;
+        }
 
-        return switch (t) {
-            case "USER" -> new UserMessage(m.c);
-            case "ASSISTANT", "AI", "MODEL" -> new AssistantMessage(m.c);
+        String type = stored.t == null ? "" : stored.t.toUpperCase();
+
+        return switch (type) {
+            case "USER" -> new UserMessage(stored.c);
+            case "ASSISTANT", "AI", "MODEL" -> new AssistantMessage(stored.c);
             default -> null;
         };
     }

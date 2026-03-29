@@ -11,13 +11,13 @@ import org.springframework.context.annotation.Configuration;
 @RequiredArgsConstructor
 public class ChatMemoryConfig {
 
-    private final ClaudeProperties claudeProperties;
+    private final AiProperties aiProperties;
 
     @Bean
     public ChatMemory chatMemory(ChatMemoryRepository repo) {
         return MessageWindowChatMemory.builder()
                 .chatMemoryRepository(repo)
-                .maxMessages((int) claudeProperties.getMemory().getMaxMessages())
+                .maxMessages((int) aiProperties.getMemory().getMaxMessages())
                 .build();
     }
 }

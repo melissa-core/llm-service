@@ -9,11 +9,13 @@ import org.springframework.validation.annotation.Validated;
 @Setter
 @Validated
 @ConfigurationProperties(prefix = "melisa.ai")
-public class ClaudeProperties {
+public class AiProperties {
 
-
-    private Claude claude;
     private Memory memory;
+    private ModelProfile classifier;
+    private ModelProfile general;
+    private ModelProfile product;
+    private ModelProfile summary;
 
     @Getter
     @Setter
@@ -24,8 +26,7 @@ public class ClaudeProperties {
 
     @Getter
     @Setter
-    public static class Claude {
-        private String system;
+    public static class ModelProfile {
         private String model;
         private Integer maxOutputTokens;
         private Integer maxInputChars;
@@ -33,6 +34,3 @@ public class ClaudeProperties {
         private Double topP;
     }
 }
-
-
-

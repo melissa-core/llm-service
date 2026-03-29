@@ -37,7 +37,7 @@ application:
   downstream:
     hmacSecret: ${HMAC_SECRET:change-me-downstream-shared-secret}
   catalog:
-    catalog-service-url: ${CATALOG_SERVICE_URL}
+    catalog-service-url: ${CATALOG_SERVICE_URL:http://localhost:8077}
     catalog-embedding-path: /api/v1/embeddings
 
 eureka:
@@ -54,13 +54,31 @@ melisa:
     memory:
       max-messages: 14
       ttl-seconds: 2592000
-    claude:
-      system: "Faqat o'zbek tilida va faqat LOTIN yozuvida javob ber. Ruscha yoki inglizcha so'z ishlatma. Qisqa va aniq yoz."
+
+    classifier:
+      model: "claude-haiku-4-5"
+      max-output-tokens: 64
+      max-input-chars: 4000
+      temperature: 0.0
+
+    general:
       model: "claude-sonnet-4-5"
       max-output-tokens: 1024
       max-input-chars: 12000
+      temperature: 0.3
+
+    product:
+      model: "claude-opus-4-5"
+      max-output-tokens: 1024
+      max-input-chars: 14000
       temperature: 0.2
-  #      top-p: 0.9
+
+    summary:
+      model: "claude-haiku-4-5"
+      max-output-tokens: 400
+      max-input-chars: 8000
+      temperature: 0.1
+
   models:
     difficulty-rate: 0.5
     router-model:
@@ -95,38 +113,31 @@ melisa:
       input-query-type: query
       input-document-type: document
 
+# You can set: claude-sonnet-4-5 / claude-haiku-4-5 / claude-opus-4-5
+
 ---
+#spring:
+#  ai:
+#    model:
+#      chat: google-genai
+#    google:
+#      genai:
+#        api-key: ${GEMINI_API_KEY:AIzaSyBFyFlbxVLDa8lB618xOhNO15j1rn2M3MM}
+##        chat:
+##          options:
+##            model: ${GEMINI_MODEL:gemini-1.5-flash}
+##            max-output-tokens: ${GEMINI_MAX_OUTPUT_TOKENS:1024}
+##            temperature: ${GEMINI_TEMPERATURE:0.2}
+
 spring:
   ai:
     model:
-      chat: anthropic  # enables Anthropic ChatModel auto-config
-    anthropic:
-      api-key: ${ANTHROPIC_API_KEY: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}
-      chat:
-        options:
-          # You can set: claude-sonnet-4-5 / claude-haiku-4-5 / claude-opus-4-5
-          model: ${ANTHROPIC_MODEL:claude-sonnet-4-5}
-          max-tokens: ${ANTHROPIC_MAX_TOKENS:1024}
-          temperature: ${ANTHROPIC_TEMPERATURE:0.2}
-    #          top-p: ${ANTHROPIC_TOP_P:0.9}
-    #    model:
-    #      chat: ollama  # enables Ollama ChatModel auto-config
-    #    ollama:
-    #      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}  # NOTE: no /v1 here
-    #      chat:
-    #        options:
-    #          model: ${OLLAMA_MODEL:llama3.1:8b}
-    #          temperature: ${OLLAMA_TEMPERATURE:0.2}
-    #          top-p: ${OLLAMA_TOP_P:0.9}
-    #          top-k: ${OLLAMA_TOP_K:40}
-    #          num-ctx: ${OLLAMA_NUM_CTX:4096}
-    #          num-predict: ${OLLAMA_NUM_PREDICT:512}
+      chat: anthropic
 
-    # ==================================
-    # PROD profile: Anthropic (Claude)
-    # ==================================
-    #
-    #  spring:
-    #    config:
-    #      activate:
-    #        on-profile: prod
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY}
+#      chat:
+#        options:
+#          model: ${ANTHROPIC_MODEL:claude-sonnet-4-5}
+#          max-tokens: ${ANTHROPIC_MAX_TOKENS:1024}
+#          temperature: ${ANTHROPIC_TEMPERATURE:0.2}

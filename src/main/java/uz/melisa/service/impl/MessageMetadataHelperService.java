@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import uz.melisa.domain.MessageMetadata;
-import uz.melisa.dto.claude.ClaudeResult;
+import uz.melisa.dto.claude.AIResult;
 import uz.melisa.dto.client.llama.LlamaChatResponseDTO;
 import uz.melisa.repository.MessageMetadataRepository;
 
@@ -22,7 +22,7 @@ public class MessageMetadataHelperService {
     public void saveClaude(Long chatId,
                            Long messageId,
                            String conversationKey,
-                           ClaudeResult result,
+                           AIResult result,
                            String requestRaw,
                            boolean isFoodContent,
                            String requestLang,
