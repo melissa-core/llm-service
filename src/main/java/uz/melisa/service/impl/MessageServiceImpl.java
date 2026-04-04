@@ -10,6 +10,7 @@ import uz.melisa.dto.chat.ChatUserMessageDTO;
 import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.dto.message.MessageResponseDTO;
 import uz.melisa.dto.message.MessageSendRequestDTO;
+import uz.melisa.enums.MessageContentType;
 import uz.melisa.exp.ItemNotFoundException;
 import uz.melisa.repository.MessageRepository;
 import uz.melisa.service.GlobalMessageHandler;
@@ -38,7 +39,8 @@ public class MessageServiceImpl implements MessageService {
         String modelText = entry.getValue();
         Message modelMessage = messageHelperService.saveModelMessage(chatUserMessage.getChatId(), userId, modelText, hasSuggestions);
         return CommonResponse.success(
-                new MessageResponseDTO(modelMessage.getText(), chatUserMessage.getChatId(), chatUserMessage.getMessageId(), modelMessage.getId())
+                new MessageResponseDTO(modelMessage.getText(), chatUserMessage.getChatId(),
+                        chatUserMessage.getMessageId(), modelMessage.getId(), getContentType(hasSuggestions))
         );
     }
 
@@ -52,5 +54,9 @@ public class MessageServiceImpl implements MessageService {
         messageRepository.deleteMessageById(message.getId());
         log.info("User {} message deleted {}", userId, id);
         return CommonResponse.success(new ResponseMessageDTO("Message deleted"));
+    }
+
+    private MessageContentType getContentType(Boolean isProductBased) {
+        return Boolean.TRUE.equals(isProductBased) ? MessageContentType.PRODUCT : MessageContentType.GENERAL;
     }
 }
