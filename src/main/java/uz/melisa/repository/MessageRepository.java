@@ -20,6 +20,10 @@ public interface MessageRepository extends JpaRepository<Message, Long>, JpaSpec
                 m.text,
                 cast(m.messageType as string),
                 cast(m.messageAuthorityType as string),
+                            case
+                    when m.hasProductSuggestions = true then uz.melisa.enums.MessageContentType.PRODUCT
+                    else uz.melisa.enums.MessageContentType.GENERAL
+                end,
                 m.createdAt
             )
             from Message m
@@ -37,6 +41,10 @@ public interface MessageRepository extends JpaRepository<Message, Long>, JpaSpec
                 m.text,
                 cast(m.messageType as string),
                 cast(m.messageAuthorityType as string),
+                case
+                    when m.hasProductSuggestions = true then uz.melisa.enums.MessageContentType.PRODUCT
+                    else uz.melisa.enums.MessageContentType.GENERAL
+                end,
                 m.createdAt
             )
             from Message m

@@ -3,6 +3,7 @@ package uz.melisa.dto.chat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import uz.melisa.enums.MessageContentType;
 
 import java.sql.Timestamp;
 
@@ -15,5 +16,6 @@ public class ChatMessagesDTO {
     private String messageText;
     private String messageType;
     private String messageAuthorityType;
+    private MessageContentType contentType;
     private Timestamp createdAt;
 }
