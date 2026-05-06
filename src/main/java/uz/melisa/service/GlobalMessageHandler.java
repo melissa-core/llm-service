@@ -10,6 +10,7 @@ import uz.melisa.dto.client.catalog.EmbeddingProductSearchRequestDTO;
 import uz.melisa.dto.client.catalog.ProductDTO;
 import uz.melisa.dto.client.embedding.VoyageEmbeddingResponseDTO;
 import uz.melisa.dto.common.CommonResponse;
+import uz.melisa.dto.message.ProductBasedMessage;
 import uz.melisa.enums.AiRoute;
 import uz.melisa.repository.ChatMemoryRepository;
 import uz.melisa.service.client.CatalogServiceClient;
@@ -17,6 +18,7 @@ import uz.melisa.service.client.EmbeddingClient;
 import uz.melisa.service.impl.ChatPostProcessService;
 import uz.melisa.util.StringUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -34,23 +36,20 @@ public class GlobalMessageHandler {
     private final EmbeddingClient embeddingClient;
     private final EmbeddingService embeddingService;
     private final CatalogServiceClient catalogServiceClient;
-    private final MessageProductSuggestionService messageProductSuggestionService;
 
-    public Map<Boolean, String> handleChatMessage(ChatUserMessageDTO chatUserMessage, Long userId) {
+    public Map<Boolean, ProductBasedMessage> handleChatMessage(ChatUserMessageDTO chatUserMessage, Long userId) {
         Long chatId = chatUserMessage.getChatId();
         Long messageId = chatUserMessage.getMessageId();
         String input = trimToEmpty(chatUserMessage.getMessage());
         String conversationKey = "chat:" + chatId;
         String prevSummary = loadPrevSummary(chatId);
         boolean productBased = aiChatService.isProductBased(input);
+        List<Long> productIds = new ArrayList<>();
         if (productBased) {
             VoyageEmbeddingResponseDTO embedded = performEmbedding(input, messageId);
             List<ProductDTO> products = resolveProducts(userId, embedded);
             if (!products.isEmpty()) {
-                messageProductSuggestionService.saveProductSuggestion(
-                        messageId,
-                        products.stream().map(ProductDTO::getId).toList()
-                );
+                productIds = products.stream().map(ProductDTO::getId).toList();
             }
             if (products.size() > 5) {
                 products = products.subList(0, 5);
@@ -62,8 +61,7 @@ public class GlobalMessageHandler {
                     chatId, messageId, conversationKey, input, answer,
                     !products.isEmpty(), null, null, modelInput, result
             );
-
-            return Map.of(!products.isEmpty(), answer);
+            return Map.of(!products.isEmpty(), new ProductBasedMessage(answer, productIds));
         }
         String modelInput = buildGeneralModelInput(prevSummary, input);
         AIResult result = aiChatService.chat(AiRoute.GENERAL, conversationKey, modelInput);
@@ -72,7 +70,7 @@ public class GlobalMessageHandler {
                 chatId, messageId, conversationKey, input, answer,
                 false, null, null, modelInput, result
         );
-        return Map.of(false, answer);
+        return Map.of(false, new ProductBasedMessage(answer, productIds));
     }
 
     private VoyageEmbeddingResponseDTO performEmbedding(String input, Long messageId) {

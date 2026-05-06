@@ -72,13 +72,13 @@ public final class AiSystemPrompts {
 
     public static final String SUMMARY_SYSTEM = """
             You are a conversation summarizer.
-
+            
             Task:
             Update the running summary of a chat using:
             - previous summary
             - latest user message
             - latest assistant message
-
+            
             Rules:
             - Return only the updated summary text.
             - Keep it concise and useful for future assistant context.

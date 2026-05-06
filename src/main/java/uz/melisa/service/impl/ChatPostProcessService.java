@@ -15,7 +15,10 @@ import uz.melisa.enums.MessageAuthorityType;
 import uz.melisa.repository.ChatMemoryRepository;
 import uz.melisa.repository.MessageLanguageDetailsRepository;
 import uz.melisa.service.AiChatService;
+import uz.melisa.service.MessageProductSuggestionService;
 import uz.melisa.util.StringUtil;
+
+import java.util.List;
 
 import static uz.melisa.constants.PrivacyConstants.SYSTEM_COMMAND;
 import static uz.melisa.util.StringUtil.trimToEmpty;
@@ -30,6 +33,7 @@ public class ChatPostProcessService {
     private final ObjectMapper objectMapper;
     private final MessageLanguageDetailsRepository messageLanguageDetailsRepository;
     private final AiChatService aiChatService;
+    private final MessageProductSuggestionService messageProductSuggestionService;
 
     @Async("postProcessExecutor")
     @Transactional
@@ -58,6 +62,17 @@ public class ChatPostProcessService {
             updateSummary(chatId, userText, assistantText);
         } catch (Exception e) {
             log.warn("summary save failed chatId={}", chatId, e);
+        }
+    }
+
+    @Async("postProcessExecutor")
+    @Transactional
+    public void processRecommendedMessage(Long messageId, List<Long> productIds) {
+        if (messageId == null || productIds == null || productIds.isEmpty()) return;
+        try {
+            messageProductSuggestionService.saveProductSuggestion(messageId, productIds);
+        } catch (Exception e) {
+            log.warn("message product suggestion save failed messageId={} productIds={}", messageId, productIds, e);
         }
     }
 

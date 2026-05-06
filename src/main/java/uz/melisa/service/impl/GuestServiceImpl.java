@@ -13,6 +13,7 @@ import uz.melisa.dto.chat.ChatUserMessageDTO;
 import uz.melisa.dto.claude.GuestChatRequest;
 import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.dto.guest.GuestMessageResponseDTO;
+import uz.melisa.dto.message.ProductBasedMessage;
 import uz.melisa.exp.BadRequestException;
 import uz.melisa.repository.ChatRepository;
 import uz.melisa.repository.MessageRepository;
@@ -44,7 +45,7 @@ public class GuestServiceImpl implements GuestService {
         Chat chat = guestMessageHelperService.saveOrGetGuestChat(device, messageText);
         Message message = guestMessageHelperService.saveGuestUserMessage(chat.getId(), messageText);
 
-        Map<Boolean, String> modelResponse = globalMessageHandler.handleChatMessage(new ChatUserMessageDTO(
+        Map<Boolean, ProductBasedMessage> modelResponse = globalMessageHandler.handleChatMessage(new ChatUserMessageDTO(
                 chat.getId(), message.getId(), messageText
         ), null);
 

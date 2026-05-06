@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import uz.melisa.domain.Chat;
 import uz.melisa.domain.Message;
+import uz.melisa.dto.message.ProductBasedMessage;
 import uz.melisa.repository.ChatRepository;
 import uz.melisa.repository.MessageRepository;
 
@@ -41,10 +42,10 @@ public class GuestMessageHelperService {
     }
 
     @Transactional
-    public Message saveGuestModelMessage(Long chatId, Map<Boolean, String> modelResponse) {
-        Map.Entry<Boolean, String> entry = modelResponse.entrySet().iterator().next();
+    public Message saveGuestModelMessage(Long chatId, Map<Boolean, ProductBasedMessage> modelResponse) {
+        Map.Entry<Boolean, ProductBasedMessage> entry = modelResponse.entrySet().iterator().next();
         Boolean hasSuggestions = entry.getKey();
-        String modelText = entry.getValue();
+        String modelText = entry.getValue().getMessage();
         Message modelMessage = messageRepository.save(buildModelMessage(modelText, hasSuggestions, chatId, null));
         messageRepository.flush();
         return modelMessage;

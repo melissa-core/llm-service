@@ -10,6 +10,7 @@ import uz.melisa.dto.chat.ChatUserMessageDTO;
 import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.dto.message.MessageResponseDTO;
 import uz.melisa.dto.message.MessageSendRequestDTO;
+import uz.melisa.dto.message.ProductBasedMessage;
 import uz.melisa.enums.MessageContentType;
 import uz.melisa.exp.ItemNotFoundException;
 import uz.melisa.repository.MessageRepository;
@@ -28,16 +29,20 @@ public class MessageServiceImpl implements MessageService {
     private final MessageHelperService messageHelperService;
     private final MessageRepository messageRepository;
     private final GlobalMessageHandler globalMessageHandler;
+    private final ChatPostProcessService chatPostProcessService;
 
     @Override
     public CommonResponse<MessageResponseDTO> sendMessage(MessageSendRequestDTO req) {
         Long userId = getCurrentUserId();
         ChatUserMessageDTO chatUserMessage = messageHelperService.saveChatAndUserMessage(req, userId);
-        Map<Boolean, String> modelResponse = globalMessageHandler.handleChatMessage(chatUserMessage, userId);
-        Map.Entry<Boolean, String> entry = modelResponse.entrySet().iterator().next();
+        Map<Boolean, ProductBasedMessage> modelResponse = globalMessageHandler.handleChatMessage(chatUserMessage, userId);
+        Map.Entry<Boolean, ProductBasedMessage> entry = modelResponse.entrySet().iterator().next();
         Boolean hasSuggestions = entry.getKey();
-        String modelText = entry.getValue();
+        ProductBasedMessage productBasedMessage = entry.getValue();
+        String modelText = productBasedMessage.getMessage();
         Message modelMessage = messageHelperService.saveModelMessage(chatUserMessage.getChatId(), userId, modelText, hasSuggestions);
+        chatPostProcessService.processRecommendedMessage(modelMessage.getId(),
+                productBasedMessage.getProductIds());
         return CommonResponse.success(
                 new MessageResponseDTO(modelMessage.getText(), chatUserMessage.getChatId(),
                         chatUserMessage.getMessageId(), modelMessage.getId(), getContentType(hasSuggestions))
