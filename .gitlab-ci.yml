@@ -1,5 +1,4 @@
 stages:
-  - build
   - package
   - deploy
 
@@ -15,13 +14,15 @@ cache:
   paths:
     - .m2/repository
 
-build:
-  stage: build
+package:
+  stage: package
   image: maven:3.9-eclipse-temurin-21
   tags:
     - java21
     - prod
   script:
+    - apt-get update
+    - apt-get install -y docker.io
     - mvn clean package -DskipTests
     - mkdir -p build-output
     - |
@@ -29,23 +30,6 @@ build:
       echo "Selected JAR: ${JAR_FILE}"
       test -n "${JAR_FILE}"
       cp "${JAR_FILE}" build-output/app.jar
-  artifacts:
-    paths:
-      - build-output/app.jar
-    expire_in: 1 week
-
-package:
-  stage: package
-  image: docker:27-cli
-  tags:
-    - java21
-    - prod
-  needs:
-    - job: build
-      artifacts: true
-  script:
-    - echo "DOCKER_HOST=$DOCKER_HOST"
-    - ls -l /var/run/docker.sock
     - docker version
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker build -t "$IMAGE_TAG" -t "$LATEST_IMAGE" .
