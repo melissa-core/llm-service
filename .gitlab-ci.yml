@@ -1,0 +1,109 @@
+stages:
+  - build
+  - package
+  - deploy
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  IMAGE_TAG: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+  LATEST_IMAGE: "$CI_REGISTRY_IMAGE:latest"
+  DOCKER_HOST: "unix:///var/run/docker.sock"
+  DOCKER_TLS_CERTDIR: ""
+
+cache:
+  key: "$CI_PROJECT_NAME"
+  paths:
+    - .m2/repository
+
+build:
+  stage: build
+  image: maven:3.9-eclipse-temurin-21
+  tags:
+    - java21
+    - prod
+  script:
+    - mvn clean package -DskipTests
+    - mkdir -p build-output
+    - |
+      JAR_FILE="$(find target -maxdepth 1 -type f -name '*.jar' -not -name '*plain*' -not -name 'original-*' | head -n 1)"
+      echo "Selected JAR: ${JAR_FILE}"
+      test -n "${JAR_FILE}"
+      cp "${JAR_FILE}" build-output/app.jar
+  artifacts:
+    paths:
+      - build-output/app.jar
+    expire_in: 1 week
+
+package:
+  stage: package
+  image: docker:27-cli
+  tags:
+    - java21
+    - prod
+  needs:
+    - job: build
+      artifacts: true
+  script:
+    - echo "DOCKER_HOST=$DOCKER_HOST"
+    - ls -l /var/run/docker.sock
+    - docker version
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - docker build -t "$IMAGE_TAG" -t "$LATEST_IMAGE" .
+    - docker push "$IMAGE_TAG"
+    - docker push "$LATEST_IMAGE"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+
+deploy:
+  stage: deploy
+  image: alpine:latest
+  tags:
+    - java21
+    - prod
+  needs:
+    - job: package
+  when: manual
+  allow_failure: false
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+  script:
+    - ssh "$DEPLOY_USER@$DEPLOY_HOST" "echo '$CI_REGISTRY_PASSWORD' | docker login -u '$CI_REGISTRY_USER' --password-stdin '$CI_REGISTRY'"
+    - |
+      ssh "$DEPLOY_USER@$DEPLOY_HOST" << EOF
+      set -e
+
+      SERVICE_NAME="llm-service"
+      SERVICE_DIR="/opt/mtech/llm-service"
+      RELEASE_DIR="/data/mtech/releases/llm-service"
+      JAR_BACKUP_DIR="\$RELEASE_DIR/jars"
+
+      mkdir -p "\$JAR_BACKUP_DIR"
+      cd "\$SERVICE_DIR"
+
+      if docker ps -a --format '{{.Names}}' | grep -qx "\$SERVICE_NAME"; then
+        CURRENT_IMAGE="\$(docker inspect "\$SERVICE_NAME" --format '{{.Config.Image}}' || true)"
+        SAFE_IMAGE="\$(echo "\$CURRENT_IMAGE" | sed 's#[/:]#_#g')"
+        BACKUP_FILE="\$JAR_BACKUP_DIR/\${SAFE_IMAGE:-unknown}-\$(date +%F_%H-%M-%S).jar"
+
+        docker cp "\$SERVICE_NAME:/app/app.jar" "\$BACKUP_FILE" || true
+
+        echo "\$(date -Is) old_image=\$CURRENT_IMAGE backup_jar=\$BACKUP_FILE new_image=$IMAGE_TAG" >> "\$RELEASE_DIR/deployments.log"
+      fi
+
+      echo "LLM_SERVICE_IMAGE=$IMAGE_TAG" > .env
+
+      docker compose pull
+      docker compose up -d
+
+      ls -1t "\$JAR_BACKUP_DIR"/*.jar 2>/dev/null | tail -n +6 | xargs -r rm -f
+
+      docker ps | grep "\$SERVICE_NAME"
+      EOF
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: manual
+    - when: never

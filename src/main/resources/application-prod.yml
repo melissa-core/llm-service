@@ -87,8 +87,8 @@ melisa:
       auth-key: ${AUTH_KEY}
       difficulty-path: /difficulty
       summarize-path: /summarize
-      food-intent-path: /food-intent
       max-tokens: 256
+      food-intent-path: /food-intent
     llama-model:
       base-url: ${LLAMA_BASE_URL}
       auth-key: ${AUTH_KEY}
