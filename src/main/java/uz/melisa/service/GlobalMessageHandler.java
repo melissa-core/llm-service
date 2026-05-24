@@ -8,7 +8,7 @@ import uz.melisa.dto.chat.ChatUserMessageDTO;
 import uz.melisa.dto.claude.AIResult;
 import uz.melisa.dto.client.catalog.EmbeddingProductSearchRequestDTO;
 import uz.melisa.dto.client.catalog.ProductDTO;
-import uz.melisa.dto.client.embedding.VoyageEmbeddingResponseDTO;
+import uz.melisa.dto.client.embedding.OpenAiEmbeddingResponseDTO;
 import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.dto.message.ProductBasedMessage;
 import uz.melisa.enums.AiRoute;
@@ -46,7 +46,7 @@ public class GlobalMessageHandler {
         boolean productBased = aiChatService.isProductBased(input);
         List<Long> productIds = new ArrayList<>();
         if (productBased) {
-            VoyageEmbeddingResponseDTO embedded = performEmbedding(input, messageId);
+            OpenAiEmbeddingResponseDTO embedded = performEmbedding(input, messageId);
             List<ProductDTO> products = resolveProducts(userId, embedded);
             if (!products.isEmpty()) {
                 productIds = products.stream().map(ProductDTO::getId).toList();
@@ -73,26 +73,25 @@ public class GlobalMessageHandler {
         return Map.of(false, new ProductBasedMessage(answer, productIds));
     }
 
-    private VoyageEmbeddingResponseDTO performEmbedding(String input, Long messageId) {
-        VoyageEmbeddingResponseDTO embedded = embeddingClient.embed(input);
+    private OpenAiEmbeddingResponseDTO performEmbedding(String input, Long messageId) {
+        OpenAiEmbeddingResponseDTO embedded = embeddingClient.embed(input);
         embeddingService.saveEmbedding(messageId, embedded, input);
         return embedded;
     }
 
-    private List<ProductDTO> resolveProducts(Long userId, VoyageEmbeddingResponseDTO embedded) {
+    private List<ProductDTO> resolveProducts(Long userId, OpenAiEmbeddingResponseDTO embedded) {
         if (embedded == null || embedded.getData() == null || embedded.getData().isEmpty()) {
             return List.of();
         }
-
+        List<Float> embedding = embedded.getData().getFirst().getEmbedding();
         CommonResponse<List<ProductDTO>> response = catalogServiceClient.embeddingToProduct(
                 userId,
                 new EmbeddingProductSearchRequestDTO(
-                        toFloatArray(embedded.getData().getFirst().getEmbedding()),
+                        toFloatArray(embedding),
                         50,
                         currentLang()
                 )
         );
-
         if (response == null || response.getData() == null) {
             return List.of();
         }

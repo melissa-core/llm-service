@@ -6,8 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import uz.melisa.domain.EmbeddingDetails;
-import uz.melisa.dto.client.embedding.VoyageEmbeddingData;
-import uz.melisa.dto.client.embedding.VoyageEmbeddingResponseDTO;
+import uz.melisa.dto.client.embedding.OpenAiEmbeddingDataDTO;
+import uz.melisa.dto.client.embedding.OpenAiEmbeddingResponseDTO;
 import uz.melisa.repository.EmbeddingDetailsRepository;
 import uz.melisa.service.EmbeddingService;
 
@@ -20,12 +20,12 @@ public class EmbeddingServiceImpl implements EmbeddingService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Override
-    public void saveEmbedding(Long messageId, VoyageEmbeddingResponseDTO voyageEmbeddingResponseDTO,
+    public void saveEmbedding(Long messageId, OpenAiEmbeddingResponseDTO openAiEmbeddingResponseDTO,
                               String message) {
-        for (VoyageEmbeddingData data : voyageEmbeddingResponseDTO.getData()) {
+        for (OpenAiEmbeddingDataDTO data : openAiEmbeddingResponseDTO.getData()) {
             EmbeddingDetails embeddingDetails = new EmbeddingDetails();
-            embeddingDetails.setModel(voyageEmbeddingResponseDTO.getModel());
-            embeddingDetails.setTotalTokens(voyageEmbeddingResponseDTO.getUsage().getTotalTokens());
+            embeddingDetails.setModel(openAiEmbeddingResponseDTO.getModel());
+            embeddingDetails.setTotalTokens(openAiEmbeddingResponseDTO.getUsage().getTotalTokens());
             embeddingDetails.setMessageId(messageId);
             embeddingDetails.setEmbeddingIndex(data.getIndex());
             embeddingDetails.setEmbedding(data.getEmbedding());

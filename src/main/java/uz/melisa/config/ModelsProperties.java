@@ -16,7 +16,7 @@ public class ModelsProperties {
     private LlamaModel llamaModel;
     private TranslatorModel translatorModel;
     private FitratModel fitratModel;
-    private VoyageEmbedding voyageEmbedding;
+    private Embedding embedding;
 
     @Getter
     @Setter
@@ -66,11 +66,10 @@ public class ModelsProperties {
 
     @Getter
     @Setter
-    public static class VoyageEmbedding {
+    public static class Embedding {
         private String baseUrl;
         private String secretKey;
         private String model;
-        private String inputQueryType;
-        private String inputDocumentType;
+        private Integer dimensions;
     }
 }

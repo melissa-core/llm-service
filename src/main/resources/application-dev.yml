@@ -108,12 +108,11 @@ melisa:
       tokenize-path: /tokenize
       detect-path: /detect
       healthz-path: /healthz
-    voyage-embedding:
-      base-url: https://api.voyageai.com/v1/embeddings
-      secret-key: ${EMBEDDING_SECRET_KEY}
-      model: voyage-multilingual-2
-      input-query-type: query
-      input-document-type: document
+    embedding:
+      base-url: https://api.openai.com/v1/embeddings
+      secret-key: ${OPENAI_API_KEY}
+      model: text-embedding-3-small
+      dimensions: 1024
 
 # =========================
 # DEV profile: local Ollama
