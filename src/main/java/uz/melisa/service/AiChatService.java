@@ -4,11 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.google.genai.GoogleGenAiChatOptions;
 import org.springframework.stereotype.Service;
 import uz.melisa.config.AiProperties;
 import uz.melisa.dto.claude.AIResult;
@@ -37,7 +38,6 @@ public class AiChatService {
                 .call()
                 .chatResponse();
 
-        log.info("The chat response : {}", resp);
         String text = extractContent(resp);
         log.info("Classifier RAW output: >>>{}<<<",
                 text == null ? "NULL" : text.substring(0, Math.min(text.length(), 400)));
@@ -84,11 +84,10 @@ public class AiChatService {
         };
     }
 
-    private AnthropicChatOptions buildOptions(AiProperties.ModelProfile profile) {
-        var builder = AnthropicChatOptions.builder()
-                .temperature(0.0)
+    private ChatOptions buildOptions(AiProperties.ModelProfile profile) {
+        var builder = GoogleGenAiChatOptions.builder()
                 .model(profile.getModel())
-                .maxTokens(profile.getMaxOutputTokens());
+                .maxOutputTokens(profile.getMaxOutputTokens());
 
         if (profile.getTemperature() != null) {
             builder.temperature(profile.getTemperature());
@@ -100,12 +99,13 @@ public class AiChatService {
     }
 
     private boolean parseProductBased(String text) {
-        if (text == null) return false;
-
-        String cleaned = text.trim();
-
-        cleaned = cleaned.replaceFirst("^```(?:json)?\\s*", "");
-        cleaned = cleaned.replaceFirst("\\s*```$", "");
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String cleaned = text.trim()
+                .replaceFirst("^```(?:json)?\\s*", "")
+                .replaceFirst("\\s*```$", "")
+                .trim();
 
         int start = cleaned.indexOf('{');
         int end = cleaned.lastIndexOf('}');
@@ -115,7 +115,25 @@ public class AiChatService {
 
         try {
             JsonNode root = objectMapper.readTree(cleaned);
-            return root.path("productBased").asBoolean(false);
+
+            JsonNode node = root.get("productBased");
+            if (node == null) {
+                node = root.get("product_based");
+            }
+
+            if (node == null) {
+                return false;
+            }
+
+            if (node.isBoolean()) {
+                return node.asBoolean(false);
+            }
+
+            if (node.isTextual()) {
+                return Boolean.parseBoolean(node.asText().trim());
+            }
+
+            return false;
         } catch (Exception e) {
             log.warn("Classifier output is not valid JSON. head='{}'",
                     cleaned.substring(0, Math.min(cleaned.length(), 120)));
@@ -124,11 +142,16 @@ public class AiChatService {
     }
 
     private String extractContent(ChatResponse response) {
-        if (response == null || response.getResults().isEmpty()) {
+        if (response == null || response.getResults() == null || response.getResults().isEmpty()) {
             return "";
         }
+
         var output = response.getResults().getFirst().getOutput();
-        return output.getText() == null ? "" : output.getText();
+        if (output == null || output.getText() == null) {
+            return "";
+        }
+
+        return output.getText().trim();
     }
 
     private String buildSummaryInput(String previousSummary, String userText, String assistantText) {
@@ -149,11 +172,15 @@ public class AiChatService {
     }
 
     private String enforceMaxChars(String text, Integer maxChars) {
-        if (text == null) return "";
+        if (text == null) {
+            return "";
+        }
+
         String trimmed = text.trim();
         if (maxChars == null || maxChars <= 0 || trimmed.length() <= maxChars) {
             return trimmed;
         }
+
         return trimmed.substring(0, maxChars);
     }
 

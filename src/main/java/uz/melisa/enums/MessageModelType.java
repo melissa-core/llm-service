@@ -4,5 +4,6 @@ public enum MessageModelType {
 
     CLAUDE,
     LLAMA,
-    NONE
+    NONE,
+    GEMINI
 }

@@ -58,28 +58,32 @@ melisa:
       ttl-seconds: 2592000
 
     classifier:
-      model: "claude-haiku-4-5"
+      model: "gemini-3.1-flash-lite-preview"
       max-output-tokens: 64
       max-input-chars: 4000
       temperature: 0.0
+      top-p: 0.1
 
     general:
-      model: "claude-sonnet-4-5"
+      model: "gemini-3-flash-preview"
       max-output-tokens: 1024
       max-input-chars: 12000
-      temperature: 0.3
+      temperature: 0.2
+      top-p: 0.8
 
     product:
-      model: "claude-opus-4-5"
-      max-output-tokens: 1024
+      model: "gemini-3.1-pro-preview"
+      max-output-tokens: 1200
       max-input-chars: 14000
       temperature: 0.2
+      top-p: 0.8
 
     summary:
-      model: "claude-haiku-4-5"
+      model: "gemini-3.1-flash-lite-preview"
       max-output-tokens: 400
       max-input-chars: 8000
       temperature: 0.1
+      top-p: 0.5
 
   models:
     difficulty-rate: 0.5
@@ -132,13 +136,29 @@ melisa:
 ##            max-output-tokens: ${GEMINI_MAX_OUTPUT_TOKENS:1024}
 ##            temperature: ${GEMINI_TEMPERATURE:0.2}
 
+#spring:
+#  ai:
+#    model:
+#      chat: anthropic
+#
+#    anthropic:
+#      api-key: ${ANTHROPIC_API_KEY}
+
 spring:
   ai:
     model:
-      chat: anthropic
+      chat: google-genai
 
-    anthropic:
-      api-key: ${ANTHROPIC_API_KEY}
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY}
+        chat:
+          api-key: ${GEMINI_API_KEY}
+          options:
+            model: gemini-3-flash-preview
+            temperature: 0.2
+            max-output-tokens: 1024
+
 #      chat:
 #        options:
 #          model: ${ANTHROPIC_MODEL:claude-sonnet-4-5}

@@ -18,7 +18,7 @@ public final class MessageUtil {
         message.setMessageType(MessageType.TEXT);
         message.setHasProductSuggestions(hasSuggestions);
         message.setMessageAuthorityType(MessageAuthorityType.MODEL);
-        message.setMessageModelType(MessageModelType.CLAUDE);
+        message.setMessageModelType(MessageModelType.GEMINI);
         return message;
     }
 
