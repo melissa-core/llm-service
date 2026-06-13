@@ -24,6 +24,7 @@ public class MessageController {
 
     private final MessageService messageService;
 
+    @PreAuthorize("hasRole('ROLE_USER')")
     @PostMapping("/send")
     public ResponseEntity<CommonResponse<MessageResponseDTO>> sendMessage(
             @RequestBody @Valid MessageSendRequestDTO messageSendRequestDTO
@@ -32,6 +33,7 @@ public class MessageController {
         return ResponseUtil.buildResponseDTO(messageService.sendMessage(messageSendRequestDTO));
     }
 
+    @PreAuthorize("hasRole('ROLE_USER')")
     @PostMapping(value = "/send/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<Object>> sendMessageStream(
             @RequestBody @Valid MessageSendRequestDTO messageSendRequestDTO

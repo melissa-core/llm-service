@@ -155,6 +155,17 @@ public class AiChatService {
     }
 
     public String extractContent(ChatResponse response) {
+        return extractContentRaw(response).trim();
+    }
+
+    /**
+     * Returns the chunk text without trimming. Streaming must use this so that
+     * inter-token whitespace (leading spaces, newlines) is preserved across
+     * deltas; trimming each chunk would collapse spacing in the rendered and
+     * persisted answer. The blocking path uses {@link #extractContent} which
+     * trims the full response once.
+     */
+    public String extractContentRaw(ChatResponse response) {
         if (response == null || response.getResults() == null || response.getResults().isEmpty()) {
             return "";
         }
@@ -164,7 +175,7 @@ public class AiChatService {
             return "";
         }
 
-        return output.getText().trim();
+        return output.getText();
     }
 
     private String buildSummaryInput(String previousSummary, String userText, String assistantText) {

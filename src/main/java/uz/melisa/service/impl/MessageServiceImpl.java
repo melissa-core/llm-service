@@ -61,13 +61,16 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public Flux<ServerSentEvent<Object>> sendMessageStream(MessageSendRequestDTO request) {
-        return Mono.fromCallable(() -> prepareStreamContext(request))
+        // Resolve the user on the servlet request thread: SecurityContextHolder is
+        // thread-local and is not propagated to the boundedElastic scheduler below.
+        Long userId = getCurrentUserId();
+        return Mono.fromCallable(() -> prepareStreamContext(request, userId))
                 .subscribeOn(Schedulers.boundedElastic())
-                .flatMapMany(this::streamAnswer);
+                .flatMapMany(this::streamAnswer)
+                .onErrorResume(error -> handleStreamError(request.getChatId(), error));
     }
 
-    private ChatStreamContext prepareStreamContext(MessageSendRequestDTO request) {
-        Long userId = getCurrentUserId();
+    private ChatStreamContext prepareStreamContext(MessageSendRequestDTO request, Long userId) {
         ChatUserMessageDTO userMessage = messageHelperService.saveChatAndUserMessage(request, userId);
         ChatStreamPlan plan = globalMessageHandler.prepareChatStream(userMessage, userId);
 
@@ -89,8 +92,8 @@ public class MessageServiceImpl implements MessageService {
                     firstChunk.compareAndSet(null, chunk);
                     lastChunk.set(chunk);
                 })
-                .map(aiChatService::extractContent)
-                .filter(text -> !text.isBlank())
+                .map(aiChatService::extractContentRaw)
+                .filter(text -> !text.isEmpty())
                 .doOnNext(answer::append)
                 .map(this::toDeltaEvent);
 
@@ -99,16 +102,14 @@ public class MessageServiceImpl implements MessageService {
                         context.userMessage(),
                         context.userId(),
                         context.plan(),
-                        answer.toString(),
+                        answer.toString().trim(),
                         firstChunk.get(),
                         lastChunk.get()
                 ))
                 .subscribeOn(Schedulers.boundedElastic())
                 .map(this::toDoneEvent);
 
-        return deltaEvents
-                .concatWith(doneEvent)
-                .onErrorResume(error -> handleStreamError(context, answer, error));
+        return deltaEvents.concatWith(doneEvent);
     }
 
     private ServerSentEvent<Object> toDeltaEvent(String text) {
@@ -123,15 +124,8 @@ public class MessageServiceImpl implements MessageService {
                 .build();
     }
 
-    private Mono<ServerSentEvent<Object>> handleStreamError(ChatStreamContext context,
-                                                            StringBuilder answer,
-                                                            Throwable error) {
-        log.error(
-                "Streaming chat failed, chatId={}, messageId={}",
-                context.userMessage().getChatId(),
-                context.userMessage().getMessageId(),
-                error
-        );
+    private Mono<ServerSentEvent<Object>> handleStreamError(Long chatId, Throwable error) {
+        log.error("Streaming chat failed, chatId={}", chatId, error);
 
         return Mono.just(ServerSentEvent.builder((Object) new ResponseMessageDTO("Something went wrong"))
                 .event("error")
