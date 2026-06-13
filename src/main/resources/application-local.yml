@@ -19,6 +19,11 @@ spring:
       host: localhost
       port: 6379
 
+  mvc:
+    async:
+      # SSE streams (/send/stream) must outlive the container's async timeout
+      request-timeout: 180s
+
 management:
   endpoints:
     web:
@@ -62,13 +67,13 @@ melisa:
       temperature: 0.0
 
     general:
-      model: "claude-sonnet-4-5"
+      model: "claude-sonnet-4-6"
       max-output-tokens: 1024
       max-input-chars: 12000
       temperature: 0.3
 
     product:
-      model: "claude-opus-4-5"
+      model: "claude-opus-4-8"
       max-output-tokens: 1024
       max-input-chars: 14000
       temperature: 0.2
@@ -113,22 +118,9 @@ melisa:
       input-query-type: query
       input-document-type: document
 
-# You can set: claude-sonnet-4-5 / claude-haiku-4-5 / claude-opus-4-5
+# Current model IDs: claude-opus-4-8 / claude-sonnet-4-6 / claude-haiku-4-5
 
 ---
-#spring:
-#  ai:
-#    model:
-#      chat: google-genai
-#    google:
-#      genai:
-#        api-key: ${GEMINI_API_KEY:AIzaSyBFyFlbxVLDa8lB618xOhNO15j1rn2M3MM}
-##        chat:
-##          options:
-##            model: ${GEMINI_MODEL:gemini-1.5-flash}
-##            max-output-tokens: ${GEMINI_MAX_OUTPUT_TOKENS:1024}
-##            temperature: ${GEMINI_TEMPERATURE:0.2}
-
 spring:
   ai:
     model:
@@ -136,8 +128,16 @@ spring:
 
     anthropic:
       api-key: ${ANTHROPIC_API_KEY}
-#      chat:
-#        options:
-#          model: ${ANTHROPIC_MODEL:claude-sonnet-4-5}
-#          max-tokens: ${ANTHROPIC_MAX_TOKENS:1024}
-#          temperature: ${ANTHROPIC_TEMPERATURE:0.2}
+      chat:
+        options:
+          model: ${ANTHROPIC_MODEL:claude-opus-4-8}
+          max-tokens: ${ANTHROPIC_MAX_TOKENS:1024}
+
+# Previous provider (Gemini) — switch back by setting chat: google-genai
+#spring:
+#  ai:
+#    model:
+#      chat: google-genai
+#    google:
+#      genai:
+#        api-key: ${GEMINI_API_KEY}

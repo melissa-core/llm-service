@@ -10,6 +10,7 @@ import uz.melisa.dto.client.catalog.EmbeddingProductSearchRequestDTO;
 import uz.melisa.dto.client.catalog.ProductDTO;
 import uz.melisa.dto.client.embedding.OpenAiEmbeddingResponseDTO;
 import uz.melisa.dto.common.CommonResponse;
+import uz.melisa.dto.message.ChatStreamPlan;
 import uz.melisa.dto.message.ProductBasedMessage;
 import uz.melisa.enums.AiRoute;
 import uz.melisa.repository.ChatMemoryRepository;
@@ -59,7 +60,7 @@ public class GlobalMessageHandler {
             String answer = result == null ? "" : trimToEmpty(result.getText());
             chatPostProcessService.processClaude(
                     chatId, messageId, conversationKey, input, answer,
-                    !products.isEmpty(), null, null, modelInput, result
+                    !products.isEmpty(), modelInput, null, null, result
             );
             return Map.of(!products.isEmpty(), new ProductBasedMessage(answer, productIds));
         }
@@ -68,9 +69,39 @@ public class GlobalMessageHandler {
         String answer = result == null ? "" : trimToEmpty(result.getText());
         chatPostProcessService.processClaude(
                 chatId, messageId, conversationKey, input, answer,
-                false, null, null, modelInput, result
+                false, modelInput, null, null, result
         );
         return Map.of(false, new ProductBasedMessage(answer, productIds));
+    }
+
+    /**
+     * Runs the pre-model part of the chat flow (classification, embedding,
+     * product lookup, prompt building) and returns everything the streaming
+     * endpoint needs to start the model stream and persist results afterwards.
+     */
+    public ChatStreamPlan prepareChatStream(ChatUserMessageDTO chatUserMessage, Long userId) {
+        Long chatId = chatUserMessage.getChatId();
+        Long messageId = chatUserMessage.getMessageId();
+        String input = trimToEmpty(chatUserMessage.getMessage());
+        String conversationKey = "chat:" + chatId;
+        String prevSummary = loadPrevSummary(chatId);
+
+        if (!aiChatService.isProductBased(input)) {
+            return new ChatStreamPlan(
+                    AiRoute.GENERAL, conversationKey,
+                    buildGeneralModelInput(prevSummary, input),
+                    List.of(), false
+            );
+        }
+
+        OpenAiEmbeddingResponseDTO embedded = performEmbedding(input, messageId);
+        List<ProductDTO> products = resolveProducts(userId, embedded);
+        if (products.size() > 5) {
+            products = products.subList(0, 5);
+        }
+        List<Long> productIds = products.stream().map(ProductDTO::getId).toList();
+        String modelInput = buildProductModelInput(prevSummary, input, products);
+        return new ChatStreamPlan(AiRoute.PRODUCT, conversationKey, modelInput, productIds, !products.isEmpty());
     }
 
     private OpenAiEmbeddingResponseDTO performEmbedding(String input, Long messageId) {
