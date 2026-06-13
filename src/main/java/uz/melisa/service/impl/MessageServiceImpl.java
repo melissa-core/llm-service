@@ -60,40 +60,89 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
-    public Flux<ServerSentEvent<Object>> sendMessageStream(MessageSendRequestDTO req) {
-        Long userId = getCurrentUserId();
-        ChatUserMessageDTO chatUserMessage = messageHelperService.saveChatAndUserMessage(req, userId);
-        ChatStreamPlan plan = globalMessageHandler.prepareChatStream(chatUserMessage, userId);
+    public Flux<ServerSentEvent<Object>> sendMessageStream(MessageSendRequestDTO request) {
+        return Mono.fromCallable(() -> prepareStreamContext(request))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(this::streamAnswer);
+    }
 
+    private ChatStreamContext prepareStreamContext(MessageSendRequestDTO request) {
+        Long userId = getCurrentUserId();
+        ChatUserMessageDTO userMessage = messageHelperService.saveChatAndUserMessage(request, userId);
+        ChatStreamPlan plan = globalMessageHandler.prepareChatStream(userMessage, userId);
+
+        return new ChatStreamContext(userId, userMessage, plan);
+    }
+
+    private Flux<ServerSentEvent<Object>> streamAnswer(ChatStreamContext context) {
         StringBuilder answer = new StringBuilder();
         AtomicReference<ChatResponse> firstChunk = new AtomicReference<>();
         AtomicReference<ChatResponse> lastChunk = new AtomicReference<>();
 
         Flux<ServerSentEvent<Object>> deltaEvents = aiChatService
-                .chatStream(plan.route(), plan.conversationKey(), plan.modelInput())
+                .chatStream(
+                        context.plan().route(),
+                        context.plan().conversationKey(),
+                        context.plan().modelInput()
+                )
                 .doOnNext(chunk -> {
                     firstChunk.compareAndSet(null, chunk);
                     lastChunk.set(chunk);
                 })
                 .map(aiChatService::extractContent)
-                .filter(text -> !text.isEmpty())
+                .filter(text -> !text.isBlank())
                 .doOnNext(answer::append)
-                .map(text -> ServerSentEvent.builder((Object) text).event("delta").build());
+                .map(this::toDeltaEvent);
 
         Mono<ServerSentEvent<Object>> doneEvent = Mono
                 .fromCallable(() -> completeStreamedMessage(
-                        chatUserMessage, userId, plan, answer.toString(), firstChunk.get(), lastChunk.get()))
+                        context.userMessage(),
+                        context.userId(),
+                        context.plan(),
+                        answer.toString(),
+                        firstChunk.get(),
+                        lastChunk.get()
+                ))
                 .subscribeOn(Schedulers.boundedElastic())
-                .map(messageResponse -> ServerSentEvent.builder((Object) messageResponse).event("done").build());
+                .map(this::toDoneEvent);
 
         return deltaEvents
                 .concatWith(doneEvent)
-                .onErrorResume(e -> {
-                    log.error("Streaming chat failed chatId={}", chatUserMessage.getChatId(), e);
-                    return Mono.just(ServerSentEvent.builder((Object) new ResponseMessageDTO("Something went wrong"))
-                            .event("error")
-                            .build());
-                });
+                .onErrorResume(error -> handleStreamError(context, answer, error));
+    }
+
+    private ServerSentEvent<Object> toDeltaEvent(String text) {
+        return ServerSentEvent.builder((Object) text)
+                .event("delta")
+                .build();
+    }
+
+    private ServerSentEvent<Object> toDoneEvent(MessageResponseDTO response) {
+        return ServerSentEvent.builder((Object) response)
+                .event("done")
+                .build();
+    }
+
+    private Mono<ServerSentEvent<Object>> handleStreamError(ChatStreamContext context,
+                                                            StringBuilder answer,
+                                                            Throwable error) {
+        log.error(
+                "Streaming chat failed, chatId={}, messageId={}",
+                context.userMessage().getChatId(),
+                context.userMessage().getMessageId(),
+                error
+        );
+
+        return Mono.just(ServerSentEvent.builder((Object) new ResponseMessageDTO("Something went wrong"))
+                .event("error")
+                .build());
+    }
+
+    private record ChatStreamContext(
+            Long userId,
+            ChatUserMessageDTO userMessage,
+            ChatStreamPlan plan
+    ) {
     }
 
     private MessageResponseDTO completeStreamedMessage(ChatUserMessageDTO chatUserMessage,
