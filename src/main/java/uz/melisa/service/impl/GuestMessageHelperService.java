@@ -23,6 +23,7 @@ public class GuestMessageHelperService {
 
     private final ChatRepository chatRepository;
     private final MessageRepository messageRepository;
+    private final MessageSequenceService messageSequenceService;
 
     @Transactional
     public Chat saveOrGetGuestChat(String deviceId, String messageText) {
@@ -36,7 +37,9 @@ public class GuestMessageHelperService {
 
     @Transactional
     public Message saveGuestUserMessage(Long chatId, String messageText) {
-        Message userMessage = messageRepository.save(buildUserMessage(messageText, chatId, null));
+        Message userMessage = buildUserMessage(messageText, chatId, null);
+        userMessage.setMessageSeq(messageSequenceService.nextMessageSeq(chatId));
+        userMessage = messageRepository.save(userMessage);
         messageRepository.flush();
         return userMessage;
     }
@@ -46,7 +49,9 @@ public class GuestMessageHelperService {
         Map.Entry<Boolean, ProductBasedMessage> entry = modelResponse.entrySet().iterator().next();
         Boolean hasSuggestions = entry.getKey();
         String modelText = entry.getValue().getMessage();
-        Message modelMessage = messageRepository.save(buildModelMessage(modelText, hasSuggestions, chatId, null));
+        Message modelMessage = buildModelMessage(modelText, hasSuggestions, chatId, null);
+        modelMessage.setMessageSeq(messageSequenceService.nextMessageSeq(chatId));
+        modelMessage = messageRepository.save(modelMessage);
         messageRepository.flush();
         return modelMessage;
     }

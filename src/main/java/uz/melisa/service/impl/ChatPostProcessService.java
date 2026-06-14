@@ -14,7 +14,6 @@ import uz.melisa.dto.client.llama.LlamaChatResponseDTO;
 import uz.melisa.enums.MessageAuthorityType;
 import uz.melisa.repository.ChatMemoryRepository;
 import uz.melisa.repository.MessageLanguageDetailsRepository;
-import uz.melisa.service.AiChatService;
 import uz.melisa.service.MessageProductSuggestionService;
 import uz.melisa.util.StringUtil;
 
@@ -32,7 +31,7 @@ public class ChatPostProcessService {
     private final ChatMemoryRepository chatMemoryRepository;
     private final ObjectMapper objectMapper;
     private final MessageLanguageDetailsRepository messageLanguageDetailsRepository;
-    private final AiChatService aiChatService;
+    private final MemoryExtractionService memoryExtractionService;
     private final MessageProductSuggestionService messageProductSuggestionService;
 
     @Async("postProcessExecutor")
@@ -144,16 +143,14 @@ public class ChatPostProcessService {
                 .orElse("");
 
         String summary = trimToEmpty(
-                aiChatService.summarize(prevSummary, userText, assistantText)
+                memoryExtractionService.extractSummaryOnly(prevSummary, userText, assistantText)
         );
-
         if (summary.isEmpty()) {
             return;
         }
 
         ChatMemory mem = chatMemoryRepository.findByChatId(chatId)
                 .orElseGet(() -> ChatMemory.builder().chatId(chatId).build());
-
         mem.setSummary(summary);
         chatMemoryRepository.save(mem);
     }

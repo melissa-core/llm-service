@@ -22,6 +22,7 @@ public class AiProperties {
     public static class Memory {
         private long maxMessages;
         private long ttlSeconds;
+        private int maxL2Summaries = 3;
     }
 
     @Getter

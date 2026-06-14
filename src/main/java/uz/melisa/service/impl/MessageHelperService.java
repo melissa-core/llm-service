@@ -24,6 +24,7 @@ public class MessageHelperService {
 
     private final MessageRepository messageRepository;
     private final ChatRepository chatRepository;
+    private final MessageSequenceService messageSequenceService;
 
     @Transactional
     public ChatUserMessageDTO saveChatAndUserMessage(MessageSendRequestDTO req, Long userId) {
@@ -36,7 +37,9 @@ public class MessageHelperService {
             chatRepository.flush();
         }
 
-        Message userMessage = messageRepository.save(buildUserMessage(req.getMessage(), chat.getId(), userId));
+        Message userMessage = buildUserMessage(req.getMessage(), chat.getId(), userId);
+        userMessage.setMessageSeq(messageSequenceService.nextMessageSeq(chat.getId()));
+        userMessage = messageRepository.save(userMessage);
         messageRepository.flush();
 
         return new ChatUserMessageDTO(chat.getId(), userMessage.getId(), userMessage.getText());
@@ -44,7 +47,9 @@ public class MessageHelperService {
 
     @Transactional
     public Message saveModelMessage(Long chatId, Long userId, String modelText, Boolean hasSuggestions) {
-        Message modelMessage = messageRepository.save(buildModelMessage(modelText, hasSuggestions, chatId, userId));
+        Message modelMessage = buildModelMessage(modelText, hasSuggestions, chatId, userId);
+        modelMessage.setMessageSeq(messageSequenceService.nextMessageSeq(chatId));
+        modelMessage = messageRepository.save(modelMessage);
         messageRepository.flush();
         return modelMessage;
     }

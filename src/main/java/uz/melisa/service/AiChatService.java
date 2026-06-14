@@ -48,7 +48,7 @@ public class AiChatService {
         return parseProductBased(text);
     }
 
-    public String summarize(String previousSummary, String userText, String assistantText) {
+    public String extractMemoryRaw(String previousSummary, String userText, String assistantText) {
         String input = buildSummaryInput(previousSummary, userText, assistantText);
         AIResult result = chat(AiRoute.SUMMARY, null, input);
         return result == null ? "" : trimToEmpty(result.getText());

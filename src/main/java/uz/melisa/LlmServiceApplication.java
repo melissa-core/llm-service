@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import uz.melisa.config.AiProperties;
 import uz.melisa.config.ApplicationProperties;
@@ -13,6 +14,7 @@ import uz.melisa.config.ModelsProperties;
 @SpringBootApplication
 @EnableJpaAuditing
 @EnableAspectJAutoProxy
+@EnableScheduling
 @EnableConfigurationProperties({AiProperties.class, ApplicationProperties.class, ModelsProperties.class})
 @EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)
 public class LlmServiceApplication {

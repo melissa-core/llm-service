@@ -37,6 +37,8 @@ public class GlobalMessageHandler {
     private final EmbeddingClient embeddingClient;
     private final EmbeddingService embeddingService;
     private final CatalogServiceClient catalogServiceClient;
+    private final uz.melisa.service.impl.SafetyFilterService safetyFilterService;
+    private final uz.melisa.service.impl.MemoryContextAssembler memoryContextAssembler;
 
     public Map<Boolean, ProductBasedMessage> handleChatMessage(ChatUserMessageDTO chatUserMessage, Long userId) {
         Long chatId = chatUserMessage.getChatId();
@@ -55,7 +57,7 @@ public class GlobalMessageHandler {
             if (products.size() > 5) {
                 products = products.subList(0, 5);
             }
-            String modelInput = buildProductModelInput(prevSummary, input, products);
+            String modelInput = prependMemory(userId, chatId, buildProductModelInput(prevSummary, input, products));
             AIResult result = aiChatService.chat(AiRoute.PRODUCT, conversationKey, modelInput);
             String answer = result == null ? "" : trimToEmpty(result.getText());
             chatPostProcessService.processClaude(
@@ -64,7 +66,7 @@ public class GlobalMessageHandler {
             );
             return Map.of(!products.isEmpty(), new ProductBasedMessage(answer, productIds));
         }
-        String modelInput = buildGeneralModelInput(prevSummary, input);
+        String modelInput = prependMemory(userId, chatId, buildGeneralModelInput(prevSummary, input));
         AIResult result = aiChatService.chat(AiRoute.GENERAL, conversationKey, modelInput);
         String answer = result == null ? "" : trimToEmpty(result.getText());
         chatPostProcessService.processClaude(
@@ -89,7 +91,7 @@ public class GlobalMessageHandler {
         if (!aiChatService.isProductBased(input)) {
             return new ChatStreamPlan(
                     AiRoute.GENERAL, conversationKey,
-                    buildGeneralModelInput(prevSummary, input),
+                    prependMemory(userId, chatId, buildGeneralModelInput(prevSummary, input)),
                     List.of(), false
             );
         }
@@ -100,8 +102,18 @@ public class GlobalMessageHandler {
             products = products.subList(0, 5);
         }
         List<Long> productIds = products.stream().map(ProductDTO::getId).toList();
-        String modelInput = buildProductModelInput(prevSummary, input, products);
+        String modelInput = prependMemory(userId, chatId, buildProductModelInput(prevSummary, input, products));
         return new ChatStreamPlan(AiRoute.PRODUCT, conversationKey, modelInput, productIds, !products.isEmpty());
+    }
+
+    /** Prepend the assembled customer-memory block (data, not instructions) to the model input. */
+    private String prependMemory(Long userId, Long chatId, String modelInput) {
+        if (userId == null) {
+            return modelInput;   // guests have no customer memory
+        }
+        String memoryBlock = memoryContextAssembler.renderPromptBlock(
+                memoryContextAssembler.getMemoryContext(userId, chatId));
+        return memoryBlock.isBlank() ? modelInput : memoryBlock + "\n\n" + modelInput;
     }
 
     private OpenAiEmbeddingResponseDTO performEmbedding(String input, Long messageId) {
@@ -126,7 +138,7 @@ public class GlobalMessageHandler {
         if (response == null || response.getData() == null) {
             return List.of();
         }
-        return response.getData();
+        return safetyFilterService.filterSafe(userId, response.getData());
     }
 
     private static float[] toFloatArray(List<Float> list) {

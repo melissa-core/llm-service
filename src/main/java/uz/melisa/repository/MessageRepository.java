@@ -9,7 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import uz.melisa.domain.Message;
 import uz.melisa.dto.chat.ChatMessagesDTO;
+import uz.melisa.projection.ChatMessageSeqWatermark;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface MessageRepository extends JpaRepository<Message, Long>, JpaSpecificationExecutor<Message> {
@@ -66,4 +68,27 @@ public interface MessageRepository extends JpaRepository<Message, Long>, JpaSpec
     @Query("update Message set userId = :userId where chatId = :chatId")
     void setUserId(@Param("userId") Long userId,
                    @Param("chatId") Long chatId);
+
+    @Query("select coalesce(max(m.messageSeq), 0) from Message m where m.chatId = :chatId")
+    long findMaxMessageSeqByChatId(@Param("chatId") Long chatId);
+
+    @Query("""
+            select m from Message m
+            where m.chatId = :chatId
+              and m.messageSeq between :fromSeq and :untilSeq
+              and m.isDeleted = false
+            order by m.messageSeq asc
+            """)
+    List<Message> findByChatIdAndMessageSeqRange(@Param("chatId") Long chatId,
+                                                 @Param("fromSeq") long fromSeq,
+                                                 @Param("untilSeq") long untilSeq);
+
+    @Query("""
+            select m.chatId as chatId, max(m.messageSeq) as watermark
+            from Message m
+            where m.userId = :userId
+              and m.isDeleted = false
+            group by m.chatId
+            """)
+    List<ChatMessageSeqWatermark> findChatWatermarksByUserId(@Param("userId") Long userId);
 }

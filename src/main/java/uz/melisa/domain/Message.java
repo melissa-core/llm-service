@@ -29,6 +29,9 @@ public class Message extends AuditingEntity {
     @Column(name = "chat_id")
     private Long chatId;
 
+    @Column(name = "message_seq")
+    private Long messageSeq;
+
     @Enumerated(EnumType.STRING)
     private MessageAuthorityType messageAuthorityType;
 
