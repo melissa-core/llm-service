@@ -14,6 +14,9 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+
+import java.util.Set;
+
 import uz.melisa.config.AiProperties;
 import uz.melisa.dto.claude.AIResult;
 import uz.melisa.enums.AiRoute;
@@ -24,6 +27,17 @@ import static uz.melisa.util.StringUtil.trimToEmpty;
 @RequiredArgsConstructor
 @Slf4j
 public class AiChatService {
+
+    /**
+     * Claude model id prefixes that no longer accept the sampling parameters
+     * (temperature, top_p, top_k). Requests including them return HTTP 400.
+     */
+    private static final Set<String> NO_SAMPLING_PARAM_MODELS = Set.of(
+            "claude-opus-4-7",
+            "claude-opus-4-8",
+            "claude-fable-5",
+            "claude-mythos-5"
+    );
 
     private final ChatClient chatClient;
     private final AiProperties props;
@@ -102,13 +116,25 @@ public class AiChatService {
                 .model(profile.getModel())
                 .maxTokens(profile.getMaxOutputTokens());
 
-        if (profile.getTemperature() != null) {
-            builder.temperature(profile.getTemperature());
-        }
-        if (profile.getTopP() != null) {
-            builder.topP(profile.getTopP());
+        // Newer Claude models (Opus 4.7/4.8, Fable 5, Mythos 5) removed the sampling
+        // parameters; sending them returns HTTP 400 "temperature is deprecated for this
+        // model". Only forward temperature/topP for models that still accept them.
+        if (supportsSamplingParams(profile.getModel())) {
+            if (profile.getTemperature() != null) {
+                builder.temperature(profile.getTemperature());
+            }
+            if (profile.getTopP() != null) {
+                builder.topP(profile.getTopP());
+            }
         }
         return builder.build();
+    }
+
+    private boolean supportsSamplingParams(String model) {
+        if (model == null) {
+            return true;
+        }
+        return NO_SAMPLING_PARAM_MODELS.stream().noneMatch(model::startsWith);
     }
 
     private boolean parseProductBased(String text) {
