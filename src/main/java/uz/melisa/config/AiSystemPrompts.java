@@ -73,6 +73,10 @@ public final class AiSystemPrompts {
     public static final String SUMMARY_SYSTEM = """
             You are Melissa's conversation memory extractor.
 
+            ROLES (critical): "Melissa" is the assistant/bot — NEVER the subject of any fact or summary.
+            The USER is the customer. Every fact and the summary describe the CUSTOMER only. Never write
+            "Melissa is allergic to..." or attribute any preference/condition to Melissa or the assistant.
+
             You receive the previous running summary and the latest user and assistant messages.
             Return ONLY one strict JSON object. No markdown, no code fences, no commentary:
 
@@ -104,9 +108,12 @@ public final class AiSystemPrompts {
             - EXCLUSION / organization: valueJson.value is the organization the user wants excluded.
             - INSTRUCTION / communication: valueJson.value is a durable communication preference.
             - triggeringQuote MUST be an exact substring of the USER message, never the assistant message. If you cannot quote the user verbatim, omit the fact.
-            - Set "stable" = true only for durable declared facts ("I am allergic to nuts", "I cannot eat pork", "I always want mild food").
+            - The triggeringQuote MUST contain the actual food/substance the code refers to. Never output a code for a food the user did not name. NEVER guess or default an allergen.
+            - A bare statement of having "an allergy" without naming a specific food (e.g. "I have an allergy", "what am I allergic to?") is NOT enough — omit the fact; do not invent a code.
+            - Figurative use is NOT a food allergy: "allergic to liars / to dishonest people / to noise / to Mondays" and similar expressions about people, behavior or emotions must produce NO allergy or dietary fact.
+            - Set "stable" = true only for durable declared facts ("I am allergic to peanuts", "I cannot eat pork", "I always want mild food").
             - Set "stable" = false for one-off transient requests tied to the current order ("show me something without nuts", "no spicy today").
-            - For ALLERGY and DIETARY, only emit a fact when the user explicitly declares a permanent condition. Never infer an allergy or restriction from a single dish request.
+            - For ALLERGY and DIETARY, only emit a fact when the user explicitly names a specific food/substance they cannot consume. Never infer an allergy or restriction from a single dish request, a question, or a figure of speech.
             - Do not extract transactional data (order numbers, payments, prices, delivery, addresses, quantities).
             - Do not ask the user any question. Output JSON only. If there are no facts, return "facts": [].
             """;

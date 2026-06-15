@@ -17,6 +17,9 @@ public interface CustomerMemoryEpisodeRepository extends JpaRepository<CustomerM
     @Query("select e.summary from CustomerMemoryEpisode e where e.chatId = :chatId order by e.segmentNumber desc")
     List<String> findRecentSummaries(@Param("chatId") Long chatId, Pageable pageable);
 
+    @Query("select e.summary from CustomerMemoryEpisode e where e.customerId = :customerId order by e.id desc")
+    List<String> findRecentSummariesByCustomerId(@Param("customerId") Long customerId, Pageable pageable);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from CustomerMemoryEpisode e where e.customerId = :customerId")
     int deleteByCustomerId(@Param("customerId") Long customerId);

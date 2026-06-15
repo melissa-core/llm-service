@@ -39,7 +39,7 @@ public class MemoryContextAssembler {
             return new MemoryContext(customerId, generation, factVersion, List.of(), List.of());
         }
         MemoryContext facts = factService.getMemoryContext(customerId);   // active L1 facts (cached)
-        List<String> summaries = loadSummaries(chatId);
+        List<String> summaries = loadSummaries(customerId);
         return new MemoryContext(facts.customerId(), facts.generation(), facts.factVersion(), facts.facts(), summaries);
     }
 
@@ -55,11 +55,13 @@ public class MemoryContextAssembler {
                 .toString();
     }
 
-    private List<String> loadSummaries(Long chatId) {
-        if (chatId == null) {
+    private List<String> loadSummaries(Long customerId) {
+        if (customerId == null) {
             return List.of();
         }
-        return episodeRepository.findRecentSummaries(chatId, PageRequest.of(0, maxL2Summaries()));
+        // Recall across ALL the customer's chats (not just the current one) so memory stated in a
+        // previous chat — e.g. an allergy or food preference — is available in new chats.
+        return episodeRepository.findRecentSummariesByCustomerId(customerId, PageRequest.of(0, maxL2Summaries()));
     }
 
     private int maxL2Summaries() {

@@ -39,12 +39,14 @@ public class GlobalMessageHandler {
     private final CatalogServiceClient catalogServiceClient;
     private final uz.melisa.service.impl.SafetyFilterService safetyFilterService;
     private final uz.melisa.service.impl.MemoryContextAssembler memoryContextAssembler;
+    private final uz.melisa.service.impl.MemoryProvisioningService memoryProvisioningService;
 
     public Map<Boolean, ProductBasedMessage> handleChatMessage(ChatUserMessageDTO chatUserMessage, Long userId) {
         Long chatId = chatUserMessage.getChatId();
         Long messageId = chatUserMessage.getMessageId();
         String input = trimToEmpty(chatUserMessage.getMessage());
         String conversationKey = "chat:" + chatId;
+        ensureMemoryProvisioned(userId, chatId);
         String prevSummary = loadPrevSummary(chatId);
         boolean productBased = aiChatService.isProductBased(input);
         List<Long> productIds = new ArrayList<>();
@@ -87,6 +89,7 @@ public class GlobalMessageHandler {
         String input = trimToEmpty(chatUserMessage.getMessage());
         String conversationKey = "chat:" + chatId;
         String prevSummary = loadPrevSummary(chatId);
+        ensureMemoryProvisioned(userId, chatId);
 
         if (!aiChatService.isProductBased(input)) {
             return new ChatStreamPlan(
@@ -104,6 +107,19 @@ public class GlobalMessageHandler {
         List<Long> productIds = products.stream().map(ProductDTO::getId).toList();
         String modelInput = prependMemory(userId, chatId, buildProductModelInput(prevSummary, input, products));
         return new ChatStreamPlan(AiRoute.PRODUCT, conversationKey, modelInput, productIds, !products.isEmpty());
+    }
+
+    /**
+     * Memory is ON by default for all authenticated customers: lazily create the settings row
+     * (memory_enabled=true) and a chat_state row for this chat so the segment scheduler captures it.
+     * Best-effort — a provisioning failure must never break the chat response.
+     */
+    private void ensureMemoryProvisioned(Long userId, Long chatId) {
+        try {
+            memoryProvisioningService.ensureProvisioned(userId, chatId);
+        } catch (Exception e) {
+            log.warn("memory provisioning failed userId={} chatId={}", userId, chatId, e);
+        }
     }
 
     /** Prepend the assembled customer-memory block (data, not instructions) to the model input. */
