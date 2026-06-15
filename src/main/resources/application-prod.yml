@@ -10,6 +10,12 @@ spring:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 30
+      connection-timeout: 10000
+      # Bound the per-chat SELECT ... FOR UPDATE (message_seq) lock wait so a contended lock can
+      # never block the SSE 'done' step forever; worst case it fails fast as a clean error, not a hang.
+      connection-init-sql: "SET lock_timeout = '10s'"
   jpa:
     hibernate:
       ddl-auto: update
