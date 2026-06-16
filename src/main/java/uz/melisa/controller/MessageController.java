@@ -1,12 +1,12 @@
 package uz.melisa.controller;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import uz.melisa.dto.ResponseMessageDTO;
@@ -24,7 +24,6 @@ public class MessageController {
 
     private final MessageService messageService;
 
-    @PreAuthorize("hasRole('ROLE_USER')")
     @PostMapping("/send")
     public ResponseEntity<CommonResponse<MessageResponseDTO>> sendMessage(
             @RequestBody @Valid MessageSendRequestDTO messageSendRequestDTO
@@ -33,8 +32,8 @@ public class MessageController {
         return ResponseUtil.buildResponseDTO(messageService.sendMessage(messageSendRequestDTO));
     }
 
-    @PreAuthorize("hasRole('ROLE_USER')")
-    @PostMapping(value = "/send/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Hidden
+    @PostMapping(value = "/send-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<Object>> sendMessageStream(
             @RequestBody @Valid MessageSendRequestDTO messageSendRequestDTO
     ) {
@@ -42,7 +41,6 @@ public class MessageController {
         return messageService.sendMessageStream(messageSendRequestDTO);
     }
 
-    @PreAuthorize("hasRole('ROLE_USER')")
     @PostMapping("/delete/{id}")
     public ResponseEntity<CommonResponse<ResponseMessageDTO>> deleteMessage(
             @PathVariable("id") long id
