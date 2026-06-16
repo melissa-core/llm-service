@@ -75,19 +75,19 @@ melisa:
 
     general:
       model: "claude-sonnet-4-6"
-      max-output-tokens: 1024
-      max-input-chars: 12000
+      max-output-tokens: 3000
+      max-input-chars: 16000
       temperature: 0.2
 
     product:
       model: "claude-opus-4-8"
-      max-output-tokens: 1200
+      max-output-tokens: 1600
       max-input-chars: 14000
       temperature: 0.2
 
     summary:
       model: "claude-haiku-4-5"
-      max-output-tokens: 400
+      max-output-tokens: 700
       max-input-chars: 8000
       temperature: 0.1
 
