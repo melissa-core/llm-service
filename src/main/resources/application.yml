@@ -1,3 +1,10 @@
+spring:
+  jackson:
+    # Serialize all Timestamp/Date fields (e.g. createdAt) in Tashkent local time.
+    # The stored value is an absolute instant; without this Jackson formats it in UTC,
+    # making timestamps appear 5h behind for UZ clients (18:10 local rendered as 13:10+00:00).
+    time-zone: Asia/Tashkent
+
 logging:
   level:
     uz.melisa: INFO
