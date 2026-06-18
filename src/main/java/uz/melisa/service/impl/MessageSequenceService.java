@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import uz.melisa.enums.MessageCode;
 import uz.melisa.exp.ItemNotFoundException;
 import uz.melisa.repository.ChatRepository;
 import uz.melisa.repository.MessageRepository;
@@ -27,7 +28,7 @@ public class MessageSequenceService {
     @Transactional(propagation = Propagation.MANDATORY)
     public long nextMessageSeq(Long chatId) {
         chatRepository.findByIdForUpdate(chatId)
-                .orElseThrow(() -> new ItemNotFoundException("Chat not found"));
+                .orElseThrow(() -> new ItemNotFoundException(MessageCode.CHAT_NOT_FOUND));
         long currentMax = messageRepository.findMaxMessageSeqByChatId(chatId);
         return currentMax + FIRST_MESSAGE_SEQ;
     }

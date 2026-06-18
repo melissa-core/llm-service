@@ -8,6 +8,7 @@ import uz.melisa.domain.Chat;
 import uz.melisa.domain.Message;
 import uz.melisa.dto.chat.ChatUserMessageDTO;
 import uz.melisa.dto.message.MessageSendRequestDTO;
+import uz.melisa.enums.MessageCode;
 import uz.melisa.exp.ItemNotFoundException;
 import uz.melisa.repository.ChatRepository;
 import uz.melisa.repository.MessageRepository;
@@ -31,7 +32,7 @@ public class MessageHelperService {
         Chat chat;
         if (req.getChatId() != null) {
             chat = chatRepository.findByIdAndUserIdAndIsDeletedFalse(req.getChatId(), userId)
-                    .orElseThrow(() -> new ItemNotFoundException("Chat not found"));
+                    .orElseThrow(() -> new ItemNotFoundException(MessageCode.CHAT_NOT_FOUND));
         } else {
             chat = chatRepository.save(buildChat(userId, getChatTitle(req.getMessage())));
             chatRepository.flush();

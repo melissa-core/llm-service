@@ -14,10 +14,12 @@ import uz.melisa.dto.chat.ChatPageDTO;
 import uz.melisa.dto.chat.CreateChatRequestDTO;
 import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.enums.MessageAuthorityType;
+import uz.melisa.enums.MessageCode;
 import uz.melisa.exp.ItemNotFoundException;
 import uz.melisa.repository.ChatRepository;
 import uz.melisa.repository.MessageRepository;
 import uz.melisa.service.ChatService;
+import uz.melisa.service.LocalizationService;
 
 import java.util.Optional;
 
@@ -28,10 +30,9 @@ import static uz.melisa.util.SecurityUtil.getCurrentUserId;
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
-    public static final String CHAT_NOT_FOUND = "Chat not found";
-
     private final ChatRepository chatRepository;
     private final MessageRepository messageRepository;
+    private final LocalizationService localizationService;
 
     @Override
     public CommonResponse<ResponseMessageDTO> createChat(CreateChatRequestDTO createChatRequestDTO) {
@@ -40,7 +41,7 @@ public class ChatServiceImpl implements ChatService {
         chat.setUserId(currentUserId);
         chat.setTitle(createChatRequestDTO.getTitle());
         chatRepository.save(chat);
-        return CommonResponse.success(new ResponseMessageDTO("Chat saved successfully"));
+        return CommonResponse.success(new ResponseMessageDTO(localizationService.getMessage(MessageCode.CHAT_SAVED)));
     }
 
     @Transactional(readOnly = true)
@@ -57,7 +58,7 @@ public class ChatServiceImpl implements ChatService {
         Long currentUserId = getCurrentUserId();
 
         chatRepository.findByIdAndUserIdAndIsDeletedFalse(id, currentUserId)
-                .orElseThrow(() -> new ItemNotFoundException(CHAT_NOT_FOUND));
+                .orElseThrow(() -> new ItemNotFoundException(MessageCode.CHAT_NOT_FOUND));
 
         Page<ChatMessagesDTO> chatMessages = messageRepository.findChatMessages(id, currentUserId, pageable);
         return CommonResponse.success(chatMessages);
@@ -68,7 +69,7 @@ public class ChatServiceImpl implements ChatService {
         Long currentUserId = getCurrentUserId();
 
         Chat chat = chatRepository.findByIdAndUserIdAndIsDeletedFalse(id, currentUserId)
-                .orElseThrow(() -> new ItemNotFoundException(CHAT_NOT_FOUND));
+                .orElseThrow(() -> new ItemNotFoundException(MessageCode.CHAT_NOT_FOUND));
 
         return CommonResponse.success(new ChatDTO(chat.getId(), chat.getTitle(), chat.getCreatedAt()));
     }
@@ -76,10 +77,10 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     @Override
     public CommonResponse<ResponseMessageDTO> updateChat(Long id, CreateChatRequestDTO createChatRequestDTO) {
-        if (id == null) throw new ItemNotFoundException(CHAT_NOT_FOUND);
+        if (id == null) throw new ItemNotFoundException(MessageCode.CHAT_NOT_FOUND);
 
         Chat chat = chatRepository.findByIdAndUserIdAndIsDeletedFalse(id, getCurrentUserId())
-                .orElseThrow(() -> new ItemNotFoundException(CHAT_NOT_FOUND));
+                .orElseThrow(() -> new ItemNotFoundException(MessageCode.CHAT_NOT_FOUND));
 
         Chat updateChat = Chat.builder()
                 .id(chat.getId())
@@ -88,20 +89,20 @@ public class ChatServiceImpl implements ChatService {
                 .build();
         chatRepository.save(updateChat);
 
-        return CommonResponse.success(new ResponseMessageDTO("Chat updated successfully"));
+        return CommonResponse.success(new ResponseMessageDTO(localizationService.getMessage(MessageCode.CHAT_UPDATED)));
     }
 
     @Transactional
     @Override
     public CommonResponse<ResponseMessageDTO> deleteChat(Long id) {
-        if (id == null) throw new ItemNotFoundException(CHAT_NOT_FOUND);
+        if (id == null) throw new ItemNotFoundException(MessageCode.CHAT_NOT_FOUND);
 
         Chat chat = chatRepository.findByIdAndUserIdAndIsDeletedFalse(id, getCurrentUserId())
-                .orElseThrow(() -> new ItemNotFoundException(CHAT_NOT_FOUND));
+                .orElseThrow(() -> new ItemNotFoundException(MessageCode.CHAT_NOT_FOUND));
 
         chat.setDeleted(true);
         chatRepository.save(chat);
-        return CommonResponse.success(new ResponseMessageDTO("Chat deleted successfully"));
+        return CommonResponse.success(new ResponseMessageDTO(localizationService.getMessage(MessageCode.CHAT_DELETED)));
     }
 
     @Transactional
@@ -111,13 +112,13 @@ public class ChatServiceImpl implements ChatService {
         Optional<Chat> chatOpt = chatRepository.findTop1ByDeviceIdAndIsDeletedFalse(key);
         if (chatOpt.isEmpty()) {
             log.warn("Temporary chat is not found");
-            return CommonResponse.success(new ResponseMessageDTO("Temporary chat is not found"));
+            return CommonResponse.success(new ResponseMessageDTO(localizationService.getMessage(MessageCode.CHAT_TEMPORARY_NOT_FOUND)));
         }
 
         Chat chat = chatOpt.get();
         chatRepository.activateChatByDeviceId(currentUserId, chat.getId());
         messageRepository.setUserId(currentUserId, chat.getId());
         log.info("Chat activated successfully");
-        return CommonResponse.success(new ResponseMessageDTO("Chat activated successfully"));
+        return CommonResponse.success(new ResponseMessageDTO(localizationService.getMessage(MessageCode.CHAT_ACTIVATED)));
     }
 }

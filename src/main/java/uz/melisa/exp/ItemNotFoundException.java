@@ -1,8 +1,15 @@
 package uz.melisa.exp;
 
-public class ItemNotFoundException extends RuntimeException{
+import uz.melisa.enums.ApiResponseStatus;
+import uz.melisa.enums.MessageCode;
+
+public class ItemNotFoundException extends BusinessException {
+
+    public ItemNotFoundException(MessageCode messageCode) {
+        super(messageCode, ApiResponseStatus.NOT_FOUND);
+    }
 
     public ItemNotFoundException(String message) {
-        super(message);
+        super(message, ApiResponseStatus.NOT_FOUND);
     }
 }

@@ -1,4 +1,8 @@
 spring:
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
   jackson:
     # Serialize all Timestamp/Date fields (e.g. createdAt) in Tashkent local time.
     # The stored value is an absolute instant; without this Jackson formats it in UTC,

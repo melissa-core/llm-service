@@ -3,6 +3,7 @@ package uz.melisa.service.impl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,12 +20,15 @@ import uz.melisa.dto.message.MessageResponseDTO;
 import uz.melisa.dto.message.MessageSendRequestDTO;
 import uz.melisa.dto.message.ProductBasedMessage;
 import uz.melisa.enums.MessageContentType;
+import uz.melisa.enums.MessageCode;
 import uz.melisa.exp.ItemNotFoundException;
 import uz.melisa.repository.MessageRepository;
 import uz.melisa.service.AiChatService;
 import uz.melisa.service.GlobalMessageHandler;
+import uz.melisa.service.LocalizationService;
 import uz.melisa.service.MessageService;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -40,6 +44,7 @@ public class MessageServiceImpl implements MessageService {
     private final GlobalMessageHandler globalMessageHandler;
     private final ChatPostProcessService chatPostProcessService;
     private final AiChatService aiChatService;
+    private final LocalizationService localizationService;
 
     @Override
     public CommonResponse<MessageResponseDTO> sendMessage(MessageSendRequestDTO req) {
@@ -61,13 +66,15 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public Flux<ServerSentEvent<Object>> sendMessageStream(MessageSendRequestDTO request) {
-        // Resolve the user on the servlet request thread: SecurityContextHolder is
-        // thread-local and is not propagated to the boundedElastic scheduler below.
+        // Resolve the user AND the request locale on the servlet request thread: both
+        // SecurityContextHolder and the resolved Locale are thread-local and are not
+        // propagated to the boundedElastic scheduler / onErrorResume below.
         Long userId = getCurrentUserId();
+        Locale locale = LocaleContextHolder.getLocale();
         return Mono.fromCallable(() -> prepareStreamContext(request, userId))
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMapMany(this::streamAnswer)
-                .onErrorResume(error -> handleStreamError(request.getChatId(), error));
+                .onErrorResume(error -> handleStreamError(request.getChatId(), error, locale));
     }
 
     private ChatStreamContext prepareStreamContext(MessageSendRequestDTO request, Long userId) {
@@ -124,10 +131,14 @@ public class MessageServiceImpl implements MessageService {
                 .build();
     }
 
-    private Mono<ServerSentEvent<Object>> handleStreamError(Long chatId, Throwable error) {
+    private Mono<ServerSentEvent<Object>> handleStreamError(Long chatId, Throwable error, Locale locale) {
         log.error("Streaming chat failed, chatId={}", chatId, error);
 
-        return Mono.just(ServerSentEvent.builder((Object) new ResponseMessageDTO("Something went wrong"))
+        // The stream is already committed, so the error is surfaced as an in-stream 'error'
+        // event (never via ExceptionHelper). Localize with the Locale captured on the
+        // request thread, since this runs on a reactor scheduler with no request scope.
+        return Mono.just(ServerSentEvent.builder((Object) new ResponseMessageDTO(
+                        localizationService.getMessage(MessageCode.COMMON_SOMETHING_WENT_WRONG, locale)))
                 .event("error")
                 .build());
     }
@@ -167,11 +178,11 @@ public class MessageServiceImpl implements MessageService {
     public CommonResponse<ResponseMessageDTO> deleteMessage(long id) {
         Long userId = getCurrentUserId();
         Message message = messageRepository.findByIdAndUserIdAndIsDeletedFalse(id, userId)
-                .orElseThrow(() -> new ItemNotFoundException("Message not found"));
+                .orElseThrow(() -> new ItemNotFoundException(MessageCode.MESSAGE_NOT_FOUND));
 
         messageRepository.deleteMessageById(message.getId());
         log.info("User {} message deleted {}", userId, id);
-        return CommonResponse.success(new ResponseMessageDTO("Message deleted"));
+        return CommonResponse.success(new ResponseMessageDTO(localizationService.getMessage(MessageCode.MESSAGE_DELETED)));
     }
 
     private MessageContentType getContentType(Boolean isProductBased) {

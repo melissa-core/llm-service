@@ -14,6 +14,7 @@ import uz.melisa.dto.claude.GuestChatRequest;
 import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.dto.guest.GuestMessageResponseDTO;
 import uz.melisa.dto.message.ProductBasedMessage;
+import uz.melisa.enums.MessageCode;
 import uz.melisa.exp.BadRequestException;
 import uz.melisa.repository.ChatRepository;
 import uz.melisa.repository.MessageRepository;
@@ -37,10 +38,10 @@ public class GuestServiceImpl implements GuestService {
     @Override
     public CommonResponse<GuestMessageResponseDTO> guestSendMessage(String deviceId, GuestChatRequest request) {
         String device = trimToEmpty(deviceId);
-        if (device.isEmpty()) throw new BadRequestException("Device id cannot be null or empty");
+        if (device.isEmpty()) throw new BadRequestException(MessageCode.MESSAGE_DEVICE_ID_REQUIRED);
 
         String messageText = request == null ? "" : trimToEmpty(request.getMessage());
-        if (messageText.isEmpty()) throw new BadRequestException("Message cannot be null or empty");
+        if (messageText.isEmpty()) throw new BadRequestException(MessageCode.MESSAGE_EMPTY);
 
         Chat chat = guestMessageHelperService.saveOrGetGuestChat(device, messageText);
         Message message = guestMessageHelperService.saveGuestUserMessage(chat.getId(), messageText);
@@ -58,7 +59,7 @@ public class GuestServiceImpl implements GuestService {
     @Override
     public CommonResponse<Page<ChatMessagesDTO>> getMessages(String deviceId, Pageable pageable) {
         String device = trimToEmpty(deviceId);
-        if (device.isEmpty()) throw new BadRequestException("Device id cannot be null or empty");
+        if (device.isEmpty()) throw new BadRequestException(MessageCode.MESSAGE_DEVICE_ID_REQUIRED);
 
         Chat chat = chatRepository.findTop1ByDeviceIdAndIsDeletedFalse(device).orElse(null);
         if (chat == null) return CommonResponse.success(Page.empty());
