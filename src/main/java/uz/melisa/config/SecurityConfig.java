@@ -1,5 +1,6 @@
 package uz.melisa.config;
 
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +26,15 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Internal servlet dispatches (ASYNC completion of streaming
+                        // endpoints, FORWARD, ERROR) are not externally reachable and
+                        // were already authorized on the initial REQUEST dispatch.
+                        // Spring Security 6 re-runs AuthorizationFilter on every
+                        // dispatcher type by default; without this the async re-dispatch
+                        // that finalizes a Flux<ServerSentEvent> stream is denied
+                        // (empty SecurityContext) and the SSE connection is aborted
+                        // mid-chunk after the response is already committed.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
                         .requestMatchers(
                                 "/actuator/**",
                                 "/v3/api-docs",
