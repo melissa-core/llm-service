@@ -14,12 +14,11 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
-
-import java.util.Set;
-
 import uz.melisa.config.AiProperties;
 import uz.melisa.dto.claude.AIResult;
 import uz.melisa.enums.AiRoute;
+
+import java.util.Set;
 
 import static uz.melisa.util.StringUtil.trimToEmpty;
 
@@ -45,13 +44,27 @@ public class AiChatService {
     private final ChatMemory chatMemory;
     private final ObjectMapper objectMapper;
 
-    public boolean isProductBased(String userText) {
-        String safeInput = enforceMaxChars(userText, props.getClassifier().getMaxInputChars());
+    public boolean isProductBased(String userText, String previousSummary) {
+        int maxChars = props.getClassifier().getMaxInputChars();
+
+        String safeUserText = enforceMaxChars(userText, maxChars / 2);
+        String safePreviousSummary = enforceMaxChars(
+                previousSummary == null ? "" : previousSummary,
+                maxChars / 2
+        );
+
+        String classifierInput = """
+                chatSummary:
+                %s
+                
+                latestUserMessage:
+                %s
+                """.formatted(safePreviousSummary, safeUserText);
 
         ChatResponse resp = chatClient.prompt()
                 .system(aiPromptResolver.resolve(AiRoute.CLASSIFIER))
                 .options(buildOptions(props.getClassifier()))
-                .user(safeInput)
+                .user(classifierInput)
                 .call()
                 .chatResponse();
 

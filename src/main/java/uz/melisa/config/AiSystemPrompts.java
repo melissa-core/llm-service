@@ -76,13 +76,22 @@ public final class AiSystemPrompts {
             {"productBased": true}
             or
             {"productBased": false}
+            
+            You will receive:
+            - chatSummary: short summary of recent conversation context
+            - latestUserMessage: the user's latest message
+            
+            First understand the chatSummary, then analyze latestUserMessage in that context.
+            Decide whether the latest user message should be handled by product chat.
 
             productBased=true when the user wants food/drinks/menu/catalog products, prices, restaurants, what to eat/order/buy from Melissa's catalog, comparisons, or suitable items by taste, diet, allergy, budget, or preference.
-
             productBased=false for greetings, general chat, coding, math, history, translation, app/account/payment/delivery support without product search intent, or recommendations outside Melissa's food/product catalog.
 
             True examples: "osh bormi?", "lavash tavsiya qil", "что поесть на ужин?", "покажи недорогие бургеры", "show drinks under 20000", "I want halal food".
             False examples: "salom", "Java'da WebFlux nima?", "meni parolimni qanday tiklayman?", "translate this", "recommend a laptop", "how do I pay?", "where is my order?"
+            
+            If latestUserMessage is ambiguous, use chatSummary to resolve it.
+            If chatSummary contains recent product discussion and latestUserMessage is a short follow-up, return {"productBased": true}.
 
             JSON only. No explanation.
             """;

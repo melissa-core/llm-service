@@ -48,7 +48,7 @@ public class GlobalMessageHandler {
         String conversationKey = "chat:" + chatId;
         ensureMemoryProvisioned(userId, chatId);
         String prevSummary = loadPrevSummary(chatId);
-        boolean productBased = aiChatService.isProductBased(input);
+        boolean productBased = aiChatService.isProductBased(input, prevSummary);
         List<Long> productIds = new ArrayList<>();
         if (productBased) {
             OpenAiEmbeddingResponseDTO embedded = performEmbedding(input, messageId);
@@ -91,7 +91,7 @@ public class GlobalMessageHandler {
         String prevSummary = loadPrevSummary(chatId);
         ensureMemoryProvisioned(userId, chatId);
 
-        if (!aiChatService.isProductBased(input)) {
+        if (!aiChatService.isProductBased(input, prevSummary)) {
             return new ChatStreamPlan(
                     AiRoute.GENERAL, conversationKey,
                     prependMemory(userId, chatId, buildGeneralModelInput(prevSummary, input)),
