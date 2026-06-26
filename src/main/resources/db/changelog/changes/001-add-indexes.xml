@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Verified index additions for llm-service (DB: llm_db). Indexes only; NO UNIQUE
+      (llm-service entities declare zero unique constraints — chat_memory.chat_id,
+      customer_memory_episode(chat_id,segment_number) and idempotency_key are created PLAIN).
+      Partial indexes + the high-growth `message` index -> raw <sql> CONCURRENTLY + runInTransaction=false.
+      Bounded memory-subsystem tables -> <createIndex>.
+    -->
+
+    <!-- ===== BATCH 1 — CRITICAL ===== -->
+    <changeSet id="idx_message_chat_id_message_seq" author="db-index-review" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_message_chat_id_message_seq" tableName="message"/></not></preConditions>
+        <comment>[B1] findMaxMessageSeqByChatId (every send) + 30s pending-message scheduler EXISTS + range reads. Highest-growth table -> CONCURRENTLY. Covers the unindexed chat_id FK. PLAIN (message_seq uniqueness is app-managed).</comment>
+        <sql>CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_message_chat_id_message_seq ON message (chat_id, message_seq);</sql>
+        <rollback>DROP INDEX IF EXISTS idx_message_chat_id_message_seq;</rollback>
+    </changeSet>
+
+    <!-- ===== BATCH 2 — HIGH ===== -->
+    <changeSet id="idx_message_chat_id_created_at" author="db-index-review" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_message_chat_id_created_at" tableName="message"/></not></preConditions>
+        <comment>[B2] Paged chat-open reads (findChatMessages / findGuestChatMessages) sorted by created_at. Partial.</comment>
+        <sql>CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_message_chat_id_created_at ON message (chat_id, created_at) WHERE is_deleted = false;</sql>
+        <rollback>DROP INDEX IF EXISTS idx_message_chat_id_created_at;</rollback>
+    </changeSet>
+
+    <changeSet id="idx_chat_user_id" author="db-index-review" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_chat_user_id" tableName="chat"/></not></preConditions>
+        <comment>[B2] findChatPagesOrdered (+count) filter user_id + is_deleted=false on the chat-list screen. Partial.</comment>
+        <sql>CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_chat_user_id ON chat (user_id) WHERE is_deleted = false;</sql>
+        <rollback>DROP INDEX IF EXISTS idx_chat_user_id;</rollback>
+    </changeSet>
+
+    <changeSet id="idx_chat_memory_chat_id" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_chat_memory_chat_id" tableName="chat_memory"/></not></preConditions>
+        <comment>[B2] Sole lookup findByChatId (~1 row/chat). PLAIN (entity declares NO unique on chat_id; not created UNIQUE).</comment>
+        <createIndex tableName="chat_memory" indexName="idx_chat_memory_chat_id">
+            <column name="chat_id"/>
+        </createIndex>
+        <rollback><dropIndex tableName="chat_memory" indexName="idx_chat_memory_chat_id"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_proc_job_chat_id_from_seq" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_proc_job_chat_id_from_seq" tableName="customer_memory_processing_job"/></not></preConditions>
+        <comment>[B2] Per-segment claim findFirstByChatIdAndFromMessageSeqOrderByIdDesc.</comment>
+        <createIndex tableName="customer_memory_processing_job" indexName="idx_cm_proc_job_chat_id_from_seq">
+            <column name="chat_id"/>
+            <column name="from_message_seq"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_processing_job" indexName="idx_cm_proc_job_chat_id_from_seq"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_proc_job_status_locked_until" author="db-index-review" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_proc_job_status_locked_until" tableName="customer_memory_processing_job"/></not></preConditions>
+        <comment>[B2] Every-60s lease sweep findExpiredLeases; partial on the leased subset only (locked_until null_frac ~1.0).</comment>
+        <sql>CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cm_proc_job_status_locked_until ON customer_memory_processing_job (status, locked_until) WHERE locked_until IS NOT NULL;</sql>
+        <rollback>DROP INDEX IF EXISTS idx_cm_proc_job_status_locked_until;</rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_episode_chat_id_segment_number" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_episode_chat_id_segment_number" tableName="customer_memory_episode"/></not></preConditions>
+        <comment>[B2] Segment dedup findByChatIdAndSegmentNumber + ordered recent-summaries scan. PLAIN (entity declares NO unique; not created UNIQUE).</comment>
+        <createIndex tableName="customer_memory_episode" indexName="idx_cm_episode_chat_id_segment_number">
+            <column name="chat_id"/>
+            <column name="segment_number"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_episode" indexName="idx_cm_episode_chat_id_segment_number"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_episode_customer_id_id" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_episode_customer_id_id" tableName="customer_memory_episode"/></not></preConditions>
+        <comment>[B2] Prompt-assembly findRecentSummariesByCustomerId (customer_id eq + ORDER BY id DESC limit -> backward index scan); memory default-on for all users.</comment>
+        <createIndex tableName="customer_memory_episode" indexName="idx_cm_episode_customer_id_id">
+            <column name="customer_id"/>
+            <column name="id"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_episode" indexName="idx_cm_episode_customer_id_id"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_fact_customer_id_status" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_fact_customer_id_status" tableName="customer_memory_fact"/></not></preConditions>
+        <comment>[B2] Active-fact retrieval findAllByCustomerIdAndStatus during context assembly; leading customer_id also serves deleteByCustomerId.</comment>
+        <createIndex tableName="customer_memory_fact" indexName="idx_cm_fact_customer_id_status">
+            <column name="customer_id"/>
+            <column name="status"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_fact" indexName="idx_cm_fact_customer_id_status"/></rollback>
+    </changeSet>
+
+    <!-- ===== BATCH 3 — MEDIUM ===== -->
+    <changeSet id="idx_chat_device_id" author="db-index-review" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_chat_device_id" tableName="chat"/></not></preConditions>
+        <comment>[B3] Guest free-chat / activation findTop1ByDeviceIdAndIsDeletedFalse. Partial (device_id null for logged-in chats).</comment>
+        <sql>CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_chat_device_id ON chat (device_id) WHERE is_deleted = false;</sql>
+        <rollback>DROP INDEX IF EXISTS idx_chat_device_id;</rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_proc_job_idempotency_key" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_proc_job_idempotency_key" tableName="customer_memory_processing_job"/></not></preConditions>
+        <comment>[B3] findByIdempotencyKey dedup check. PLAIN (entity declares NO unique on idempotency_key; not created UNIQUE).</comment>
+        <createIndex tableName="customer_memory_processing_job" indexName="idx_cm_proc_job_idempotency_key">
+            <column name="idempotency_key"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_processing_job" indexName="idx_cm_proc_job_idempotency_key"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_episode_expires_at" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_episode_expires_at" tableName="customer_memory_episode"/></not></preConditions>
+        <comment>[B3] 10-min TTL sweep deleteExpiredBefore.</comment>
+        <createIndex tableName="customer_memory_episode" indexName="idx_cm_episode_expires_at">
+            <column name="expires_at"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_episode" indexName="idx_cm_episode_expires_at"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_fact_customer_type_key" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_fact_customer_type_key" tableName="customer_memory_fact"/></not></preConditions>
+        <comment>[B3] Upsert findMatchingFact selective leading eq cols (normalized_value/status filtered on the few matches).</comment>
+        <createIndex tableName="customer_memory_fact" indexName="idx_cm_fact_customer_type_key">
+            <column name="customer_id"/>
+            <column name="fact_type"/>
+            <column name="fact_key"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_fact" indexName="idx_cm_fact_customer_type_key"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_candidate_customer_type_key" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_candidate_customer_type_key" tableName="customer_memory_candidate"/></not></preConditions>
+        <comment>[B3] Promotion-match findMatchingCandidate + deleteByCustomerId.</comment>
+        <createIndex tableName="customer_memory_candidate" indexName="idx_cm_candidate_customer_type_key">
+            <column name="customer_id"/>
+            <column name="fact_type"/>
+            <column name="fact_key"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_candidate" indexName="idx_cm_candidate_customer_type_key"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_cand_evidence_candidate_id_chat_id" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_cand_evidence_candidate_id_chat_id" tableName="customer_memory_candidate_evidence"/></not></preConditions>
+        <comment>[B3] findFirstByCandidateIdAndChatId... + countDistinctChatsByCandidateId; leads with the unindexed candidate_id FK.</comment>
+        <createIndex tableName="customer_memory_candidate_evidence" indexName="idx_cm_cand_evidence_candidate_id_chat_id">
+            <column name="candidate_id"/>
+            <column name="chat_id"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_candidate_evidence" indexName="idx_cm_cand_evidence_candidate_id_chat_id"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_audit_fact_id" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_audit_fact_id" tableName="customer_memory_audit"/></not></preConditions>
+        <comment>[B3] detachFromFact (where fact_id=?) before every fact hard-delete; unindexed FK that is traversed.</comment>
+        <createIndex tableName="customer_memory_audit" indexName="idx_cm_audit_fact_id">
+            <column name="fact_id"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_audit" indexName="idx_cm_audit_fact_id"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_deletion_outbox_status" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_deletion_outbox_status" tableName="customer_memory_deletion_outbox"/></not></preConditions>
+        <comment>[B3] Outbox drain findAllByStatus polled 3x/120s.</comment>
+        <createIndex tableName="customer_memory_deletion_outbox" indexName="idx_cm_deletion_outbox_status">
+            <column name="status"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_deletion_outbox" indexName="idx_cm_deletion_outbox_status"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_msg_product_suggestion_message_id" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_msg_product_suggestion_message_id" tableName="message_product_suggestion"/></not></preConditions>
+        <comment>[B3] findAllByMessageId for product cards. Trailing `position` dropped (no DB ORDER BY in code).</comment>
+        <createIndex tableName="message_product_suggestion" indexName="idx_msg_product_suggestion_message_id">
+            <column name="message_id"/>
+        </createIndex>
+        <rollback><dropIndex tableName="message_product_suggestion" indexName="idx_msg_product_suggestion_message_id"/></rollback>
+    </changeSet>
+
+    <!-- ===== BATCH 4 — LOW / OPTIONAL ===== -->
+    <changeSet id="idx_message_user_id" author="db-index-review" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_message_user_id" tableName="message"/></not></preConditions>
+        <comment>[B4] Low-freq GDPR/watermark scans (findChatWatermarksByUserId). Partial on the high-growth message table.</comment>
+        <sql>CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_message_user_id ON message (user_id) WHERE is_deleted = false;</sql>
+        <rollback>DROP INDEX IF EXISTS idx_message_user_id;</rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_proc_job_status_updated_at" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_proc_job_status_updated_at" tableName="customer_memory_processing_job"/></not></preConditions>
+        <comment>[B4] Hourly retention purge deleteDoneBefore.</comment>
+        <createIndex tableName="customer_memory_processing_job" indexName="idx_cm_proc_job_status_updated_at">
+            <column name="status"/>
+            <column name="updated_at"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_processing_job" indexName="idx_cm_proc_job_status_updated_at"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_candidate_status_expires_at" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_candidate_status_expires_at" tableName="customer_memory_candidate"/></not></preConditions>
+        <comment>[B4] Periodic expirePendingBefore sweeps.</comment>
+        <createIndex tableName="customer_memory_candidate" indexName="idx_cm_candidate_status_expires_at">
+            <column name="status"/>
+            <column name="expires_at"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_candidate" indexName="idx_cm_candidate_status_expires_at"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_cand_evidence_expires_at" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_cand_evidence_expires_at" tableName="customer_memory_candidate_evidence"/></not></preConditions>
+        <comment>[B4] 10-min cleanup deleteExpiredBefore.</comment>
+        <createIndex tableName="customer_memory_candidate_evidence" indexName="idx_cm_cand_evidence_expires_at">
+            <column name="expires_at"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_candidate_evidence" indexName="idx_cm_cand_evidence_expires_at"/></rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_audit_customer_id" author="db-index-review" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_audit_customer_id" tableName="customer_memory_audit"/></not></preConditions>
+        <comment>[B4] GDPR detachAllByCustomerId. Partial (fact_id IS NOT NULL).</comment>
+        <sql>CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cm_audit_customer_id ON customer_memory_audit (customer_id) WHERE fact_id IS NOT NULL;</sql>
+        <rollback>DROP INDEX IF EXISTS idx_cm_audit_customer_id;</rollback>
+    </changeSet>
+
+    <changeSet id="idx_cm_chat_state_customer_id" author="db-index-review" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><indexExists indexName="idx_cm_chat_state_customer_id" tableName="customer_memory_chat_state"/></not></preConditions>
+        <comment>[B4] Low-freq GDPR findAllByCustomerId / clearActiveJobsByCustomerId.</comment>
+        <createIndex tableName="customer_memory_chat_state" indexName="idx_cm_chat_state_customer_id">
+            <column name="customer_id"/>
+        </createIndex>
+        <rollback><dropIndex tableName="customer_memory_chat_state" indexName="idx_cm_chat_state_customer_id"/></rollback>
+    </changeSet>
+
+</databaseChangeLog>

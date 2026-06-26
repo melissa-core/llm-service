@@ -1,4 +1,6 @@
 spring:
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
   messages:
     basename: i18n/messages
     encoding: UTF-8
