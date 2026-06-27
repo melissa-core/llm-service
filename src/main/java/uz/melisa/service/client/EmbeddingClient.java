@@ -1,4 +1,5 @@
 package uz.melisa.service.client;
+import org.springframework.cache.annotation.Cacheable;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,12 @@ public class EmbeddingClient {
     private final ModelsProperties modelsProperties;
     private final RestSenderService restSenderService;
 
+    // Cache-key accessor (read-only; exposes the configured embedding model for the cache key).
+    public String currentEmbeddingModel() {
+        return modelsProperties.getEmbedding().getModel();
+    }
+
+    @Cacheable(value = "llm:embedding", key = "#root.target.currentEmbeddingModel() + ':' + T(org.springframework.util.DigestUtils).md5DigestAsHex(#input.getBytes())")
     public OpenAiEmbeddingResponseDTO embed(String input) {
         return embed(List.of(input));
     }
