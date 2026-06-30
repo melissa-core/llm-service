@@ -26,7 +26,7 @@ public class EmbeddingClient {
         return modelsProperties.getEmbedding().getModel();
     }
 
-    @Cacheable(value = "llm:embedding", key = "#root.target.currentEmbeddingModel() + ':' + T(org.springframework.util.DigestUtils).md5DigestAsHex(#input.getBytes())")
+    @Cacheable(value = "llm:embedding", key = "#root.target.currentEmbeddingModel() + ':' + T(org.springframework.util.DigestUtils).md5DigestAsHex((#input == null ? '' : #input).getBytes(T(java.nio.charset.StandardCharsets).UTF_8))")
     public OpenAiEmbeddingResponseDTO embed(String input) {
         return embed(List.of(input));
     }

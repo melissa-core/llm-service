@@ -1,6 +1,5 @@
 package uz.melisa.service.impl;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +9,7 @@ import uz.melisa.dto.common.CommonResponse;
 import uz.melisa.dto.product.ProductSuggestionDTO;
 import uz.melisa.repository.MessageProductSuggestionRepository;
 import uz.melisa.service.MessageProductSuggestionService;
+import uz.melisa.service.cache.MessageProductSuggestionCacheService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +20,7 @@ import java.util.List;
 public class MessageProductSuggestionServiceImpl implements MessageProductSuggestionService {
 
     private final MessageProductSuggestionRepository messageProductSuggestionRepository;
+    private final MessageProductSuggestionCacheService messageProductSuggestionCacheService;
 
     @Override
     @CacheEvict(value = "llm:message-product-suggestions", key = "#messageId")
@@ -36,14 +37,7 @@ public class MessageProductSuggestionServiceImpl implements MessageProductSugges
     }
 
     @Override
-    @Cacheable(value = "llm:message-product-suggestions", key = "#id")
     public CommonResponse<List<ProductSuggestionDTO>> getProductsByMessage(Long id) {
-        List<MessageProductSuggestion> products = messageProductSuggestionRepository.findAllByMessageId(id);
-        if (products.isEmpty()) return CommonResponse.success(new ArrayList<>());
-
-        return CommonResponse.success(products.stream().map(product -> new ProductSuggestionDTO(
-                        product.getProductId(), product.getPosition()
-                ))
-                .toList());
+        return CommonResponse.success(messageProductSuggestionCacheService.getProductsByMessageData(id));
     }
 }
