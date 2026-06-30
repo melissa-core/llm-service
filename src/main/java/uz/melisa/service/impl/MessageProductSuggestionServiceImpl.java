@@ -36,6 +36,16 @@ public class MessageProductSuggestionServiceImpl implements MessageProductSugges
         messageProductSuggestionRepository.saveAll(list);
     }
 
+    public List<ProductSuggestionDTO> loadProductsByMessageData(Long id) {
+        List<MessageProductSuggestion> products = messageProductSuggestionRepository.findAllByMessageId(id);
+        if (products.isEmpty()) return new ArrayList<>();
+
+        return products.stream().map(product -> new ProductSuggestionDTO(
+                        product.getProductId(), product.getPosition()
+                ))
+                .toList();
+    }
+
     @Override
     public CommonResponse<List<ProductSuggestionDTO>> getProductsByMessage(Long id) {
         return CommonResponse.success(messageProductSuggestionCacheService.getProductsByMessageData(id));
