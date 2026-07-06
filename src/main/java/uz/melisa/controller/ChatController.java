@@ -63,7 +63,7 @@ public class ChatController {
     @PutMapping("/{id}")
     public ResponseEntity<CommonResponse<ResponseMessageDTO>> updateChat(
             @Parameter(description = "Id of the chat to update", required = true, example = "10")
-            @PathVariable("id") Long id,
+            @PathVariable Long id,
             @RequestBody @Valid CreateChatRequestDTO createChatRequestDTO
     ) {
         log.info("REST request to update chat : {}, {}", createChatRequestDTO, id);
@@ -98,7 +98,7 @@ public class ChatController {
     @GetMapping("/{id}")
     public ResponseEntity<CommonResponse<ChatDTO>> getChatById(
             @Parameter(description = "Id of the chat to fetch", required = true, example = "10")
-            @PathVariable("id") Long id) {
+            @PathVariable Long id) {
         log.info("REST request to get chat : {}", id);
         return ResponseUtil.buildResponseDTO(chatService.getChatById(id));
     }
@@ -115,7 +115,7 @@ public class ChatController {
     @GetMapping("/{id}/messages")
     public ResponseEntity<CommonResponse<Page<ChatMessagesDTO>>> getChatMessages(
             @Parameter(description = "Id of the chat whose messages are listed", required = true, example = "10")
-            @PathVariable("id") Long id,
+            @PathVariable Long id,
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         log.info("REST request to get chat messages");
@@ -134,7 +134,7 @@ public class ChatController {
     @DeleteMapping("/{id}")
     public ResponseEntity<CommonResponse<ResponseMessageDTO>> deleteChat(
             @Parameter(description = "Id of the chat to delete", required = true, example = "10")
-            @PathVariable("id") Long id) {
+            @PathVariable Long id) {
         log.info("REST request to delete chat : {}", id);
         return ResponseUtil.buildResponseDTO(chatService.deleteChat(id));
     }
@@ -151,7 +151,7 @@ public class ChatController {
     @PostMapping("/activate-chat/{key}")
     public ResponseEntity<CommonResponse<ResponseMessageDTO>> activateChat(
             @Parameter(description = "Device key of the temporary chat to activate", required = true, example = "device-abc-123")
-            @PathVariable("key") String key
+            @PathVariable String key
     ) {
         log.info("REST request to activate chat : {}", key);
         return ResponseUtil.buildResponseDTO(chatService.activateChat(key));

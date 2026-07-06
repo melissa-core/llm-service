@@ -84,7 +84,7 @@ public class MessageController {
     @PostMapping("/delete/{id}")
     public ResponseEntity<CommonResponse<ResponseMessageDTO>> deleteMessage(
             @Parameter(description = "Id of the message to delete", required = true, example = "42")
-            @PathVariable("id") long id
+            @PathVariable long id
     ) {
         log.info("REST request to delete message : {}", id);
         return ResponseUtil.buildResponseDTO(messageService.deleteMessage(id));

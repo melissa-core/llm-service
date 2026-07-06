@@ -11,12 +11,7 @@ import uz.melisa.domain.CustomerMemorySettings;
 import uz.melisa.dto.memory.ExtractedFact;
 import uz.melisa.dto.memory.MemoryContext;
 import uz.melisa.dto.memory.MemoryFactView;
-import uz.melisa.enums.MemoryAuditAction;
-import uz.melisa.enums.MemoryFactCardinality;
-import uz.melisa.enums.MemoryFactSourceType;
-import uz.melisa.enums.MemoryFactStatus;
-import uz.melisa.enums.MemoryFactType;
-import uz.melisa.enums.MemoryRiskClass;
+import uz.melisa.enums.*;
 import uz.melisa.repository.CustomerMemoryAuditRepository;
 import uz.melisa.repository.CustomerMemoryFactRepository;
 import uz.melisa.repository.CustomerMemorySettingsRepository;
@@ -48,19 +43,25 @@ public class CustomerMemoryFactService {
 
     // ----- writes -----
 
-    /** Create a new active L1 fact (immediate/explicit path). SINGLE-valued supersedes the prior value. */
+    /**
+     * Create a new active L1 fact (immediate/explicit path). SINGLE-valued supersedes the prior value.
+     */
     @Transactional
     public Optional<CustomerMemoryFact> createFact(Long customerId, ExtractedFact fact, MemoryFactSourceType sourceType) {
         return upsertActiveFact(customerId, fact, sourceType, MemoryAuditAction.CREATED, null);
     }
 
-    /** Promote a candidate's preference to an active L1 fact. */
+    /**
+     * Promote a candidate's preference to an active L1 fact.
+     */
     @Transactional
     public Optional<CustomerMemoryFact> promoteFact(Long customerId, ExtractedFact fact, CustomerMemoryCandidate fromCandidate) {
         return upsertActiveFact(customerId, fact, MemoryFactSourceType.REPEATED_INFERENCE, MemoryAuditAction.PROMOTED, fromCandidate);
     }
 
-    /** Re-confirm an existing active fact (a re-mention is not an active-L1 change). Returns whether it existed. */
+    /**
+     * Re-confirm an existing active fact (a re-mention is not an active-L1 change). Returns whether it existed.
+     */
     @Transactional
     public boolean confirmActiveFact(Long customerId, MemoryFactType factType, String factKey, String normalizedValue) {
         Optional<CustomerMemoryFact> existing = factRepository.findMatchingFact(
@@ -72,7 +73,9 @@ public class CustomerMemoryFactService {
         return existing.isPresent();
     }
 
-    /** Explicit correction / retirement: mark a specific active fact SUPERSEDED. */
+    /**
+     * Explicit correction / retirement: mark a specific active fact SUPERSEDED.
+     */
     @Transactional
     public void supersedeFact(Long factId, MemoryFactSourceType sourceType) {
         factRepository.findById(factId)
@@ -85,7 +88,9 @@ public class CustomerMemoryFactService {
                 });
     }
 
-    /** Reject a fact. Counts as an active-L1 change only if it was active. */
+    /**
+     * Reject a fact. Counts as an active-L1 change only if it was active.
+     */
     @Transactional
     public void rejectFact(Long factId, MemoryFactSourceType sourceType) {
         factRepository.findById(factId).ifPresent(fact -> {
@@ -99,7 +104,9 @@ public class CustomerMemoryFactService {
         });
     }
 
-    /** Hard-delete (forget) a fact. The deleted personal value is never written to audit metadata. */
+    /**
+     * Hard-delete (forget) a fact. The deleted personal value is never written to audit metadata.
+     */
     @Transactional
     public void forgetFact(Long factId) {
         factRepository.findById(factId).ifPresent(fact -> {
@@ -124,7 +131,9 @@ public class CustomerMemoryFactService {
         return factRepository.findAllByCustomerIdAndStatus(customerId, MemoryFactStatus.ACTIVE);
     }
 
-    /** Safety facts (HIGH risk). Read straight from Postgres — safety filtering must NEVER rely on Redis. */
+    /**
+     * Safety facts (HIGH risk). Read straight from Postgres — safety filtering must NEVER rely on Redis.
+     */
     public List<CustomerMemoryFact> getSafetyFacts(Long customerId) {
         return getActiveFacts(customerId).stream()
                 .filter(fact -> fact.getRiskClass() == MemoryRiskClass.HIGH)
@@ -147,7 +156,9 @@ public class CustomerMemoryFactService {
                 .orElseGet(() -> rebuildContext(customerId, generation, factVersion));
     }
 
-    /** Prompt-ready text block, formatted from the (cached) memory context. */
+    /**
+     * Prompt-ready text block, formatted from the (cached) memory context.
+     */
     public String getPromptFacts(Long customerId) {
         return buildPromptFacts(getMemoryContext(customerId).facts());
     }
@@ -234,7 +245,9 @@ public class CustomerMemoryFactService {
                 .build();
     }
 
-    /** Every active-L1 change: bump fact_version and invalidate the (old) cached prompt-fact block. */
+    /**
+     * Every active-L1 change: bump fact_version and invalidate the (old) cached prompt-fact block.
+     */
     private void onActiveL1Changed(Long customerId) {
         CustomerMemorySettings settings = settingsRepository.findByCustomerIdForUpdate(customerId).orElse(null);
         if (settings == null) {

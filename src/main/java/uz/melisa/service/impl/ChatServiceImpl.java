@@ -34,6 +34,7 @@ public class ChatServiceImpl implements ChatService {
     private final MessageRepository messageRepository;
     private final LocalizationService localizationService;
 
+    @Transactional
     @Override
     public CommonResponse<ResponseMessageDTO> createChat(CreateChatRequestDTO createChatRequestDTO) {
         Long currentUserId = getCurrentUserId();
