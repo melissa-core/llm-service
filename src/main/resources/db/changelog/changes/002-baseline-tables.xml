@@ -1,0 +1,581 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      F-028 TABLE BASELINE for llm-service (DB: llm_db).
+      16 entity tables + 16 PKs (14 identity ids + chat_state.chat_id / settings.customer_id plain-bigint PKs),
+      9 FKs and 17 CHECK constraints as guarded Liquibase changesets: MARK_RAN no-op on live, full build on a
+      fresh DB. Included in db.changelog-master.xml BEFORE 001-add-indexes.xml (fresh-DB ordering fix; 001
+      unchanged). SCOPE (D-0015): TABLE BASELINE ONLY - NO indexes of any kind (all 24 live standalone indexes
+      are 001-managed, verified 1:1); NO unique constraints exist on live and none are added. Live column
+      DEFAULTs are copied exactly (9 columns: numeric literals + memory_enabled boolean false). CHECKs are
+      authored as col IN ('...') which round-trips to the live pg_get_constraintdef text (F-016/F-025 lessons).
+      EMPTY <rollback/> everywhere: a real rollback would DROP live tables that were merely MARK_RANed.
+    -->
+
+    <!-- ===== PASS 1 - TABLES (16) ===== -->
+    <changeSet id="chat" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat"/></not></preConditions>
+        <comment>Baseline table chat (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="chat">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="chat_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="device_id" type="VARCHAR(512)"/>
+            <column name="is_deleted" type="BOOLEAN"><constraints nullable="false"/></column>
+            <column name="is_temporary" type="BOOLEAN"><constraints nullable="false"/></column>
+            <column name="title" type="VARCHAR(255)"/>
+            <column name="user_id" type="BIGINT"/>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="chat_memory" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="chat_memory"/></not></preConditions>
+        <comment>Baseline table chat_memory (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="chat_memory">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="chat_memory_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="chat_id" type="BIGINT"/>
+            <column name="summary" type="TEXT"/>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_audit" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="customer_memory_audit"/></not></preConditions>
+        <comment>Baseline table customer_memory_audit (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="customer_memory_audit">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="customer_memory_audit_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="action" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="customer_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="fact_id" type="BIGINT"/>
+            <column name="metadata" type="jsonb"><constraints nullable="false"/></column>
+            <column name="source_type" type="VARCHAR(50)"/>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_candidate" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="customer_memory_candidate"/></not></preConditions>
+        <comment>Baseline table customer_memory_candidate (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="customer_memory_candidate">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="customer_memory_candidate_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="customer_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="expires_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="fact_key" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="fact_type" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="first_seen_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="last_seen_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="max_confidence" type="numeric(5, 4)"/>
+            <column name="normalized_value" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="promoted_fact_id" type="BIGINT"/>
+            <column name="status" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="value_json" type="jsonb"><constraints nullable="false"/></column>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_candidate_evidence" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="customer_memory_candidate_evidence"/></not></preConditions>
+        <comment>Baseline table customer_memory_candidate_evidence (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="customer_memory_candidate_evidence">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="customer_memory_candidate_evidence_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="candidate_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="chat_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="confidence" type="numeric(5, 4)"/>
+            <column name="episode_id" type="BIGINT"/>
+            <column name="expires_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="source_type" type="VARCHAR(50)"><constraints nullable="false"/></column>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_chat_state" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="customer_memory_chat_state"/></not></preConditions>
+        <comment>Baseline table customer_memory_chat_state (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="customer_memory_chat_state">
+            <column name="chat_id" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="customer_memory_chat_state_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="active_job_id" type="BIGINT"/>
+            <column name="customer_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="last_completed_message_seq" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="next_segment_number" type="INT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="poison_attempts" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_deletion_outbox" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="customer_memory_deletion_outbox"/></not></preConditions>
+        <comment>Baseline table customer_memory_deletion_outbox (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="customer_memory_deletion_outbox">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="customer_memory_deletion_outbox_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="attempts" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="customer_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="generation" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="last_error" type="TEXT"/>
+            <column name="next_retry_at" type="timestamp"/>
+            <column name="status" type="VARCHAR(30)"><constraints nullable="false"/></column>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_episode" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="customer_memory_episode"/></not></preConditions>
+        <comment>Baseline table customer_memory_episode (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="customer_memory_episode">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="customer_memory_episode_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="chat_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="customer_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="expires_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="segment_number" type="INT"><constraints nullable="false"/></column>
+            <column name="sentiment" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="summarization_version" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="summarized_from_message_seq" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="summarized_until_message_seq" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="summary" type="TEXT"><constraints nullable="false"/></column>
+            <column name="topics" type="jsonb"><constraints nullable="false"/></column>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_fact" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="customer_memory_fact"/></not></preConditions>
+        <comment>Baseline table customer_memory_fact (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="customer_memory_fact">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="customer_memory_fact_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="cardinality" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="confidence" type="numeric(5, 4)"/>
+            <column name="customer_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="fact_key" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="fact_type" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="first_seen_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="last_confirmed_at" type="timestamp"/>
+            <column name="normalized_value" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="risk_class" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="schema_version" type="INT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="severity" type="VARCHAR(30)"/>
+            <column name="source_type" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="value_json" type="jsonb"><constraints nullable="false"/></column>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_processing_job" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="customer_memory_processing_job"/></not></preConditions>
+        <comment>Baseline table customer_memory_processing_job (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="customer_memory_processing_job">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="customer_memory_processing_job_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="attempts" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="chat_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="customer_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="customer_memory_generation" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="from_message_seq" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="idempotency_key" type="VARCHAR(300)"><constraints nullable="false"/></column>
+            <column name="last_error" type="TEXT"/>
+            <column name="lease_token" type="uuid"/>
+            <column name="locked_until" type="timestamp"/>
+            <column name="max_attempts" type="INT"><constraints nullable="false"/></column>
+            <column name="next_retry_at" type="timestamp"/>
+            <column name="segment_number" type="INT"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="until_message_seq" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="worker_id" type="VARCHAR(100)"/>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_settings" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="customer_memory_settings"/></not></preConditions>
+        <comment>Baseline table customer_memory_settings (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="customer_memory_settings">
+            <column name="customer_id" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="customer_memory_settings_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="consent_at" type="timestamp"/>
+            <column name="deleted_at" type="timestamp"/>
+            <column name="fact_version" type="BIGINT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="generation" type="BIGINT" defaultValueNumeric="1"><constraints nullable="false"/></column>
+            <column name="memory_enabled" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="opted_out_at" type="timestamp"/>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="embedding_details" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="embedding_details"/></not></preConditions>
+        <comment>Baseline table embedding_details (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="embedding_details">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="embedding_details_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="embedding" type="jsonb"><constraints nullable="false"/></column>
+            <column name="embedding_index" type="INT"/>
+            <column name="input" type="TEXT"/>
+            <column name="input_type" type="VARCHAR(255)"/>
+            <column name="message_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="model" type="VARCHAR(255)"/>
+            <column name="total_tokens" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="message" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="message"/></not></preConditions>
+        <comment>Baseline table message (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="message">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="message_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="chat_id" type="BIGINT"/>
+            <column name="has_product_suggestions" type="BOOLEAN"><constraints nullable="false"/></column>
+            <column name="is_deleted" type="BOOLEAN"><constraints nullable="false"/></column>
+            <column name="message_authority_type" type="VARCHAR(255)"/>
+            <column name="message_model_type" type="VARCHAR(255)"/>
+            <column name="message_type" type="VARCHAR(255)"/>
+            <column name="text" type="TEXT"/>
+            <column name="user_id" type="BIGINT"/>
+            <column name="message_seq" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="message_language_details" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="message_language_details"/></not></preConditions>
+        <comment>Baseline table message_language_details (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="message_language_details">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="message_language_details_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="chat_id" type="BIGINT"/>
+            <column name="detected_language" type="VARCHAR(255)"/>
+            <column name="detected_script" type="VARCHAR(255)"/>
+            <column name="message_authority_type" type="VARCHAR(255)"/>
+            <column name="message_id" type="BIGINT"/>
+            <column name="text" type="VARCHAR(255)"/>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="message_metadata" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="message_metadata"/></not></preConditions>
+        <comment>Baseline table message_metadata (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="message_metadata">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="message_metadata_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="cache_creation_input_tokens" type="INT"/>
+            <column name="cache_read_input_tokens" type="INT"/>
+            <column name="chat_id" type="BIGINT"/>
+            <column name="completion_tokens" type="INT"/>
+            <column name="conversation_key" type="VARCHAR(128)"/>
+            <column name="created_epoch" type="BIGINT"/>
+            <column name="detected_lang" type="VARCHAR(32)"/>
+            <column name="detected_script" type="VARCHAR(16)"/>
+            <column name="error_code" type="VARCHAR(64)"/>
+            <column name="error_message" type="TEXT"/>
+            <column name="finish_reason" type="VARCHAR(64)"/>
+            <column name="http_status" type="INT"/>
+            <column name="input_tokens" type="INT"/>
+            <column name="is_food_content" type="BOOLEAN"/>
+            <column name="latency_ms" type="INT"/>
+            <column name="message_id" type="BIGINT"/>
+            <column name="model" type="VARCHAR(128)"><constraints nullable="false"/></column>
+            <column name="output_tokens" type="INT"/>
+            <column name="prompt_tokens" type="INT"/>
+            <column name="provider" type="VARCHAR(16)"><constraints nullable="false"/></column>
+            <column name="rate_limit_raw" type="TEXT"/>
+            <column name="request_raw" type="TEXT"/>
+            <column name="response_id" type="VARCHAR(128)"/>
+            <column name="response_raw" type="TEXT"/>
+            <column name="total_tokens" type="INT"/>
+            <column name="usage_raw" type="TEXT"/>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="message_product_suggestion" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><tableExists tableName="message_product_suggestion"/></not></preConditions>
+        <comment>Baseline table message_product_suggestion (columns/types/nullability/defaults match live llm_db).</comment>
+        <createTable tableName="message_product_suggestion">
+            <column name="id" type="BIGINT" autoIncrement="true" generationType="BY DEFAULT">
+                <constraints primaryKey="true" primaryKeyName="message_product_suggestion_pkey" nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="timestamp"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="message_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="position" type="INT"><constraints nullable="false"/></column>
+            <column name="product_id" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+        <rollback/>
+    </changeSet>
+
+    <!-- ===== PASS 2 - FOREIGN KEYS (9, live names verbatim) ===== -->
+    <changeSet id="fk9l2wtqp7cs0bco37qq6c7l3ao" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><foreignKeyConstraintExists foreignKeyName="fk9l2wtqp7cs0bco37qq6c7l3ao" foreignKeyTableName="chat_memory"/></not></preConditions>
+        <comment>Baseline FK fk9l2wtqp7cs0bco37qq6c7l3ao: chat_memory.chat_id -&gt; chat.id (live name verbatim).</comment>
+        <addForeignKeyConstraint constraintName="fk9l2wtqp7cs0bco37qq6c7l3ao" baseTableName="chat_memory" baseColumnNames="chat_id" referencedTableName="chat" referencedColumnNames="id"/>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="fkeusp8gcmymiw0m24kn3m7r32t" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><foreignKeyConstraintExists foreignKeyName="fkeusp8gcmymiw0m24kn3m7r32t" foreignKeyTableName="customer_memory_audit"/></not></preConditions>
+        <comment>Baseline FK fkeusp8gcmymiw0m24kn3m7r32t: customer_memory_audit.fact_id -&gt; customer_memory_fact.id (live name verbatim).</comment>
+        <addForeignKeyConstraint constraintName="fkeusp8gcmymiw0m24kn3m7r32t" baseTableName="customer_memory_audit" baseColumnNames="fact_id" referencedTableName="customer_memory_fact" referencedColumnNames="id"/>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="fka70u8j5x30388ngq4jp2fwgcy" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><foreignKeyConstraintExists foreignKeyName="fka70u8j5x30388ngq4jp2fwgcy" foreignKeyTableName="customer_memory_candidate"/></not></preConditions>
+        <comment>Baseline FK fka70u8j5x30388ngq4jp2fwgcy: customer_memory_candidate.promoted_fact_id -&gt; customer_memory_fact.id (live name verbatim).</comment>
+        <addForeignKeyConstraint constraintName="fka70u8j5x30388ngq4jp2fwgcy" baseTableName="customer_memory_candidate" baseColumnNames="promoted_fact_id" referencedTableName="customer_memory_fact" referencedColumnNames="id"/>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="fk6e015h8gijwqo7cree0s71v6o" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><foreignKeyConstraintExists foreignKeyName="fk6e015h8gijwqo7cree0s71v6o" foreignKeyTableName="customer_memory_candidate_evidence"/></not></preConditions>
+        <comment>Baseline FK fk6e015h8gijwqo7cree0s71v6o: customer_memory_candidate_evidence.candidate_id -&gt; customer_memory_candidate.id (live name verbatim).</comment>
+        <addForeignKeyConstraint constraintName="fk6e015h8gijwqo7cree0s71v6o" baseTableName="customer_memory_candidate_evidence" baseColumnNames="candidate_id" referencedTableName="customer_memory_candidate" referencedColumnNames="id" onDelete="CASCADE"/>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="fkaoh69ew9efxseef1wcyn2ao0q" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><foreignKeyConstraintExists foreignKeyName="fkaoh69ew9efxseef1wcyn2ao0q" foreignKeyTableName="customer_memory_chat_state"/></not></preConditions>
+        <comment>Baseline FK fkaoh69ew9efxseef1wcyn2ao0q: customer_memory_chat_state.active_job_id -&gt; customer_memory_processing_job.id (live name verbatim).</comment>
+        <addForeignKeyConstraint constraintName="fkaoh69ew9efxseef1wcyn2ao0q" baseTableName="customer_memory_chat_state" baseColumnNames="active_job_id" referencedTableName="customer_memory_processing_job" referencedColumnNames="id" onDelete="SET NULL"/>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="fkmejd0ykokrbuekwwgd5a5xt8a" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><foreignKeyConstraintExists foreignKeyName="fkmejd0ykokrbuekwwgd5a5xt8a" foreignKeyTableName="message"/></not></preConditions>
+        <comment>Baseline FK fkmejd0ykokrbuekwwgd5a5xt8a: message.chat_id -&gt; chat.id (live name verbatim).</comment>
+        <addForeignKeyConstraint constraintName="fkmejd0ykokrbuekwwgd5a5xt8a" baseTableName="message" baseColumnNames="chat_id" referencedTableName="chat" referencedColumnNames="id"/>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="fkf0l0rwegf4yialcyn0ed5sbho" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><foreignKeyConstraintExists foreignKeyName="fkf0l0rwegf4yialcyn0ed5sbho" foreignKeyTableName="message_language_details"/></not></preConditions>
+        <comment>Baseline FK fkf0l0rwegf4yialcyn0ed5sbho: message_language_details.chat_id -&gt; chat.id (live name verbatim).</comment>
+        <addForeignKeyConstraint constraintName="fkf0l0rwegf4yialcyn0ed5sbho" baseTableName="message_language_details" baseColumnNames="chat_id" referencedTableName="chat" referencedColumnNames="id"/>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="fkr3yk08ylprreo8y4ye9wfndwh" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><foreignKeyConstraintExists foreignKeyName="fkr3yk08ylprreo8y4ye9wfndwh" foreignKeyTableName="message_language_details"/></not></preConditions>
+        <comment>Baseline FK fkr3yk08ylprreo8y4ye9wfndwh: message_language_details.message_id -&gt; message.id (live name verbatim).</comment>
+        <addForeignKeyConstraint constraintName="fkr3yk08ylprreo8y4ye9wfndwh" baseTableName="message_language_details" baseColumnNames="message_id" referencedTableName="message" referencedColumnNames="id"/>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="fkio3619enddp0s5sbdd12i5q3o" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><not><foreignKeyConstraintExists foreignKeyName="fkio3619enddp0s5sbdd12i5q3o" foreignKeyTableName="message_metadata"/></not></preConditions>
+        <comment>Baseline FK fkio3619enddp0s5sbdd12i5q3o: message_metadata.message_id -&gt; message.id (live name verbatim).</comment>
+        <addForeignKeyConstraint constraintName="fkio3619enddp0s5sbdd12i5q3o" baseTableName="message_metadata" baseColumnNames="message_id" referencedTableName="message" referencedColumnNames="id"/>
+        <rollback/>
+    </changeSet>
+
+    <!-- ===== PASS 3 - CHECK CONSTRAINTS (17, live names verbatim; IN-form round-trips) ===== -->
+    <changeSet id="customer_memory_audit_action_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_audit_action_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_audit_action_check on customer_memory_audit (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_audit ADD CONSTRAINT customer_memory_audit_action_check CHECK (action IN ('CREATED', 'PROMOTED', 'SUPERSEDED', 'REJECTED', 'HARD_DELETED', 'SEGMENT_SKIPPED', 'MEMORY_DISABLED', 'MEMORY_ENABLED', 'FULL_MEMORY_DELETED'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_audit_source_type_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_audit_source_type_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_audit_source_type_check on customer_memory_audit (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_audit ADD CONSTRAINT customer_memory_audit_source_type_check CHECK (source_type IN ('EXPLICIT_REMEMBER_REQUEST', 'EXPLICIT_CUSTOMER_STATEMENT', 'REPEATED_INFERENCE', 'SYSTEM_DATA', 'ADMIN_UPDATE'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_candidate_fact_type_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_candidate_fact_type_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_candidate_fact_type_check on customer_memory_candidate (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_candidate ADD CONSTRAINT customer_memory_candidate_fact_type_check CHECK (fact_type IN ('ALLERGY', 'DIETARY', 'PREFERENCE', 'EXCLUSION', 'INSTRUCTION', 'OTHER'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_candidate_status_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_candidate_status_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_candidate_status_check on customer_memory_candidate (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_candidate ADD CONSTRAINT customer_memory_candidate_status_check CHECK (status IN ('PENDING', 'PROMOTED', 'REJECTED', 'EXPIRED'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_candidate_evidence_source_type_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_candidate_evidence_source_type_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_candidate_evidence_source_type_check on customer_memory_candidate_evidence (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_candidate_evidence ADD CONSTRAINT customer_memory_candidate_evidence_source_type_check CHECK (source_type IN ('EXPLICIT_REMEMBER_REQUEST', 'EXPLICIT_CUSTOMER_STATEMENT', 'REPEATED_INFERENCE', 'SYSTEM_DATA', 'ADMIN_UPDATE'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_deletion_outbox_status_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_deletion_outbox_status_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_deletion_outbox_status_check on customer_memory_deletion_outbox (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_deletion_outbox ADD CONSTRAINT customer_memory_deletion_outbox_status_check CHECK (status IN ('PENDING', 'IN_PROGRESS', 'FAILED', 'NEEDS_ATTENTION', 'DONE'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_episode_sentiment_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_episode_sentiment_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_episode_sentiment_check on customer_memory_episode (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_episode ADD CONSTRAINT customer_memory_episode_sentiment_check CHECK (sentiment IN ('POSITIVE', 'NEUTRAL', 'NEGATIVE', 'MIXED', 'UNKNOWN'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_fact_cardinality_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_fact_cardinality_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_fact_cardinality_check on customer_memory_fact (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_fact ADD CONSTRAINT customer_memory_fact_cardinality_check CHECK (cardinality IN ('SINGLE', 'MULTI'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_fact_fact_type_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_fact_fact_type_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_fact_fact_type_check on customer_memory_fact (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_fact ADD CONSTRAINT customer_memory_fact_fact_type_check CHECK (fact_type IN ('ALLERGY', 'DIETARY', 'PREFERENCE', 'EXCLUSION', 'INSTRUCTION', 'OTHER'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_fact_risk_class_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_fact_risk_class_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_fact_risk_class_check on customer_memory_fact (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_fact ADD CONSTRAINT customer_memory_fact_risk_class_check CHECK (risk_class IN ('HIGH', 'ORDINARY'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_fact_source_type_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_fact_source_type_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_fact_source_type_check on customer_memory_fact (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_fact ADD CONSTRAINT customer_memory_fact_source_type_check CHECK (source_type IN ('EXPLICIT_REMEMBER_REQUEST', 'EXPLICIT_CUSTOMER_STATEMENT', 'REPEATED_INFERENCE', 'SYSTEM_DATA', 'ADMIN_UPDATE'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_fact_status_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_fact_status_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_fact_status_check on customer_memory_fact (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_fact ADD CONSTRAINT customer_memory_fact_status_check CHECK (status IN ('ACTIVE', 'SUPERSEDED', 'REJECTED'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="customer_memory_processing_job_status_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='customer_memory_processing_job_status_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK customer_memory_processing_job_status_check on customer_memory_processing_job (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE customer_memory_processing_job ADD CONSTRAINT customer_memory_processing_job_status_check CHECK (status IN ('PENDING', 'IN_PROGRESS', 'DONE', 'FAILED', 'ABORTED', 'DEAD_LETTER'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="message_message_authority_type_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='message_message_authority_type_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK message_message_authority_type_check on message (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE message ADD CONSTRAINT message_message_authority_type_check CHECK (message_authority_type IN ('USER', 'MODEL'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="message_message_model_type_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='message_message_model_type_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK message_message_model_type_check on message (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE message ADD CONSTRAINT message_message_model_type_check CHECK (message_model_type IN ('CLAUDE', 'LLAMA', 'NONE', 'GEMINI'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="message_message_type_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='message_message_type_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK message_message_type_check on message (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE message ADD CONSTRAINT message_message_type_check CHECK (message_type IN ('TEXT'));</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="message_language_details_message_authority_type_check" author="table-baseline" dbms="postgresql">
+        <preConditions onFail="MARK_RAN"><sqlCheck expectedResult="0">SELECT count(*) FROM pg_constraint WHERE conname='message_language_details_message_authority_type_check'</sqlCheck></preConditions>
+        <comment>Baseline CHECK message_language_details_message_authority_type_check on message_language_details (allow-list; matches live definition).</comment>
+        <sql>ALTER TABLE message_language_details ADD CONSTRAINT message_language_details_message_authority_type_check CHECK (message_authority_type IN ('USER', 'MODEL'));</sql>
+        <rollback/>
+    </changeSet>
+
+</databaseChangeLog>

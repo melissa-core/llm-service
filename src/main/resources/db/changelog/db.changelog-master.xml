@@ -6,6 +6,9 @@
             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
 
     <!-- Master changelog (llm-service / llm_db). Created by the DB indexing review. -->
+    <!-- 002 (F-028 table baseline) MUST precede 001 so a fresh DB has the tables before 001 indexes them.
+         On live, 001 is already recorded and 002 changesets MARK_RAN; include order only affects fresh DBs. -->
+    <include file="changes/002-baseline-tables.xml" relativeToChangelogFile="true"/>
     <include file="changes/001-add-indexes.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
