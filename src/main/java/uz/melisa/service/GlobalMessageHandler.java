@@ -122,7 +122,9 @@ public class GlobalMessageHandler {
         }
     }
 
-    /** Prepend the assembled customer-memory block (data, not instructions) to the model input. */
+    /**
+     * Prepend the assembled customer-memory block (data, not instructions) to the model input.
+     */
     private String prependMemory(Long userId, Long chatId, String modelInput) {
         if (userId == null) {
             return modelInput;   // guests have no customer memory
@@ -142,11 +144,11 @@ public class GlobalMessageHandler {
         if (embedded == null || embedded.getData() == null || embedded.getData().isEmpty()) {
             return List.of();
         }
-        List<Float> embedding = embedded.getData().getFirst().getEmbedding();
+        float[] embedding = embedded.getData().getFirst().getEmbedding();
         CommonResponse<List<ProductDTO>> response = catalogServiceClient.embeddingToProduct(
                 userId,
                 new EmbeddingProductSearchRequestDTO(
-                        toFloatArray(embedding),
+                        embedding,
                         50,
                         currentLang()
                 )
@@ -155,16 +157,6 @@ public class GlobalMessageHandler {
             return List.of();
         }
         return safetyFilterService.filterSafe(userId, response.getData());
-    }
-
-    private static float[] toFloatArray(List<Float> list) {
-        if (list == null || list.isEmpty()) return new float[0];
-        float[] arr = new float[list.size()];
-        for (int i = 0; i < list.size(); i++) {
-            Float value = list.get(i);
-            arr[i] = value == null ? 0f : value;
-        }
-        return arr;
     }
 
     private String loadPrevSummary(Long chatId) {

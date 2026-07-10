@@ -14,6 +14,6 @@ public class OpenAiEmbeddingDataDTO {
 
     private String object;
     @ToString.Exclude
-    private List<Float> embedding;
+    private float[] embedding;
     private Integer index;
 }

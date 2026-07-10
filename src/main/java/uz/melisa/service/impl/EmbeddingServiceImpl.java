@@ -28,7 +28,7 @@ public class EmbeddingServiceImpl implements EmbeddingService {
             embeddingDetails.setTotalTokens(openAiEmbeddingResponseDTO.getUsage().getTotalTokens());
             embeddingDetails.setMessageId(messageId);
             embeddingDetails.setEmbeddingIndex(data.getIndex());
-            embeddingDetails.setEmbedding(data.getEmbedding());
+            embeddingDetails.setEmbeddings(data.getEmbedding());
             embeddingDetails.setInput(message);
             embeddingDetailsRepository.save(embeddingDetails);
         }
