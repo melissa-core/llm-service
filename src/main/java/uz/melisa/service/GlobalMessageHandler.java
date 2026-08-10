@@ -175,17 +175,26 @@ public class GlobalMessageHandler {
         return "Summary:\n" + summary + "\n\nUser:\n" + user;
     }
 
-    private String buildProductModelInput(String prevSummary, String userText, List<ProductDTO> products) {
+    private String buildProductModelInput(
+            String prevSummary,
+            String userText,
+            List<ProductDTO> products
+    ) {
         String summary = trimToEmpty(prevSummary);
         String user = trimToEmpty(userText);
 
         StringBuilder sb = new StringBuilder(1024);
 
         if (!summary.isEmpty()) {
-            sb.append("Summary:\n").append(summary).append("\n\n");
+            sb.append("Summary:\n")
+                    .append(summary)
+                    .append("\n\n");
         }
 
-        sb.append("User:\n").append(user).append("\n\n");
+        sb.append("User:\n")
+                .append(user)
+                .append("\n\n");
+
         sb.append("CandidateProducts (max 5, use ONLY these for recommendations):\n");
 
         if (products == null || products.isEmpty()) {
@@ -193,13 +202,23 @@ public class GlobalMessageHandler {
         } else {
             for (int i = 0; i < products.size(); i++) {
                 ProductDTO p = products.get(i);
+
                 sb.append(i + 1).append(") ")
                         .append(safe(p.getName()))
-                        .append(" | price=").append(p.getPrice() == null ? "N/A" : p.getPrice()).append(" UZS")
-                        .append(" | category=").append(p.getCategory() == null ? "N/A" : p.getCategory())
-                        .append(" | tags=").append(p.getTags() == null ? "N/A" : p.getTags())
+                        .append(" | organization=")
+                        .append(safeOrNA(p.getOrganizationName()))
+                        .append(" | price=")
+                        .append(p.getPrice() == null ? "N/A" : p.getPrice())
+                        .append(" UZS")
+                        .append(" | category=")
+                        .append(safeOrNA(p.getCategory()))
+                        .append(" | tags=")
+                        .append(p.getTags() == null || p.getTags().isEmpty()
+                                ? "N/A"
+                                : p.getTags())
                         .append("\n")
-                        .append("   desc: ").append(truncate(safe(p.getDescription()), 180))
+                        .append("   desc: ")
+                        .append(truncate(safe(p.getDescription()), 180))
                         .append("\n");
             }
         }
@@ -207,9 +226,16 @@ public class GlobalMessageHandler {
         sb.append("\nInstructions:\n")
                 .append("- If CandidateProducts is [NONE], do NOT invent products. Give general advice and ask 1 short follow-up question.\n")
                 .append("- If products exist, rank them best->worst for the user’s request and explain briefly why.\n")
+                .append("- Consider organization preferences or exclusions when they are present in the provided memory/summary.\n")
+                .append("- Do not recommend a product from an organization the user has explicitly excluded.\n")
                 .append("- Do not mention databases, embeddings, vectors, or internal systems.\n");
 
         return sb.toString();
+    }
+
+    private String safeOrNA(String value) {
+        String normalized = trimToEmpty(value);
+        return normalized.isEmpty() ? "N/A" : normalized;
     }
 
     private String safe(String s) {
