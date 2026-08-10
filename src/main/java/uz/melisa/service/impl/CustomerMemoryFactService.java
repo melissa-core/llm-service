@@ -24,8 +24,8 @@ import java.util.stream.Collectors;
 
 /**
  * Canonical L1 (permanent) fact operations. Single source of truth for the active-fact invariants:
- * single-valued facts keep exactly one active value (enforced in service logic since unique indexes
- * are deferred), explicit corrections supersede the previous value, every active-L1 change bumps
+ * single-valued facts keep exactly one active value (enforced in service logic and PostgreSQL partial
+ * unique indexes), explicit corrections supersede the previous value, every active-L1 change bumps
  * customer_memory_settings.fact_version and invalidates the Redis prompt-fact cache, and every change
  * writes an audit record whose metadata never contains a personal value.
  */
@@ -64,6 +64,7 @@ public class CustomerMemoryFactService {
      */
     @Transactional
     public boolean confirmActiveFact(Long customerId, MemoryFactType factType, String factKey, String normalizedValue) {
+        settingsRepository.findByCustomerIdForUpdate(customerId);
         Optional<CustomerMemoryFact> existing = factRepository.findMatchingFact(
                 customerId, factType, factKey, normalizedValue, MemoryFactStatus.ACTIVE);
         existing.ifPresent(fact -> {
@@ -192,6 +193,10 @@ public class CustomerMemoryFactService {
     private Optional<CustomerMemoryFact> upsertActiveFact(Long customerId, ExtractedFact fact,
                                                           MemoryFactSourceType sourceType, MemoryAuditAction action,
                                                           CustomerMemoryCandidate fromCandidate) {
+        // Standalone fact writes must serialize on the same per-customer row used by segment commits.
+        // PostgreSQL UNIQUE indexes remain the final hard guarantee if an application lock is bypassed.
+        settingsRepository.findByCustomerIdForUpdate(customerId);
+
         Optional<CustomerMemoryFact> existing = factRepository.findMatchingFact(
                 customerId, fact.factType(), fact.factKey(), fact.normalizedValue(), MemoryFactStatus.ACTIVE);
         if (existing.isPresent()) {
@@ -276,9 +281,10 @@ public class CustomerMemoryFactService {
         StringBuilder builder = new StringBuilder("Known customer facts:\n");
         appendGroup(builder, facts, MemoryFactType.ALLERGY, "Allergies");
         appendGroup(builder, facts, MemoryFactType.DIETARY, "Dietary restrictions");
-        appendGroup(builder, facts, MemoryFactType.PREFERENCE, "Preferences");
-        appendGroup(builder, facts, MemoryFactType.EXCLUSION, "Exclusions");
-        appendGroup(builder, facts, MemoryFactType.INSTRUCTION, "Instructions");
+        appendKeyValueGroup(builder, facts, MemoryFactType.PREFERENCE, "Preferences");
+        appendKeyValueGroup(builder, facts, MemoryFactType.EXCLUSION, "Exclusions");
+        appendKeyValueGroup(builder, facts, MemoryFactType.INSTRUCTION, "Instructions");
+        appendKeyValueGroup(builder, facts, MemoryFactType.OTHER, "Other durable facts");
         return builder.toString().trim();
     }
 
@@ -290,6 +296,23 @@ public class CustomerMemoryFactService {
         if (!values.isBlank()) {
             builder.append("- ").append(label).append(": ").append(values).append('\n');
         }
+    }
+
+    private void appendKeyValueGroup(StringBuilder builder, List<MemoryFactView> facts,
+                                     MemoryFactType factType, String label) {
+        List<MemoryFactView> matching = facts.stream()
+                .filter(view -> view.type() == factType)
+                .toList();
+        if (matching.isEmpty()) {
+            return;
+        }
+        builder.append("- ").append(label).append(":\n");
+        matching.forEach(view -> builder
+                .append("  - ")
+                .append(view.key())
+                .append(": ")
+                .append(view.normalizedValue())
+                .append('\n'));
     }
 
     private Timestamp now() {

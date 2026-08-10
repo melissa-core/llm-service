@@ -21,9 +21,9 @@ import java.util.Optional;
 
 /**
  * Routes each validated fact to L1 (via {@link CustomerMemoryFactService}) or to the candidate
- * pipeline, inside the segment commit transaction (which already holds a per-customer settings row
- * lock — that gives the cross-chat serialization which makes find-before-insert idempotent until
- * unique constraints exist).
+ * pipeline, inside the segment commit transaction. The per-customer settings row lock serializes
+ * cross-chat writes in the application, while database partial UNIQUE indexes enforce the same
+ * invariants as a final concurrency fence.
  *
  * <p>Explicit (remember request / customer statement) and clearly-stated allergy/dietary -> immediate
  * L1. Ordinary inferred promotable preferences -> PENDING candidate + one evidence per chat, promoted

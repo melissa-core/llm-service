@@ -26,6 +26,21 @@ public class MemoryWriteService {
     private final CustomerMemoryEpisodeRepository episodeRepository;
 
     public CustomerMemoryEpisode saveEpisode(ClaimedSegment segment, ExtractedMemory memory) {
+        var existing = episodeRepository.findByChatIdAndSegmentNumber(segment.chatId(), segment.segmentNumber());
+        if (existing.isPresent()) {
+            CustomerMemoryEpisode episode = existing.get();
+            if (!segment.customerId().equals(episode.getCustomerId())
+                    || episode.getSummarizedFromMessageSeq() == null
+                    || episode.getSummarizedUntilMessageSeq() == null
+                    || episode.getSummarizedFromMessageSeq() != segment.fromSeq()
+                    || episode.getSummarizedUntilMessageSeq() != segment.untilSeq()) {
+                throw new IllegalStateException(
+                        "durable memory episode identity conflict for chat=" + segment.chatId()
+                                + ", segment=" + segment.segmentNumber());
+            }
+            return episode;
+        }
+
         String summary = memory.summary() == null || memory.summary().isBlank() ? EMPTY_SUMMARY : memory.summary();
         return episodeRepository.save(CustomerMemoryEpisode.builder()
                 .customerId(segment.customerId())

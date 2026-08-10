@@ -79,9 +79,10 @@ public class MemoryContextAssembler {
         StringBuilder builder = new StringBuilder();
         appendGroup(builder, facts, MemoryFactType.ALLERGY, "Allergies");
         appendGroup(builder, facts, MemoryFactType.DIETARY, "Dietary restrictions");
-        appendGroup(builder, facts, MemoryFactType.PREFERENCE, "Preferences");
-        appendGroup(builder, facts, MemoryFactType.EXCLUSION, "Exclusions");
-        appendGroup(builder, facts, MemoryFactType.INSTRUCTION, "Instructions");
+        appendKeyValueGroup(builder, facts, MemoryFactType.PREFERENCE, "Preferences");
+        appendKeyValueGroup(builder, facts, MemoryFactType.EXCLUSION, "Exclusions");
+        appendKeyValueGroup(builder, facts, MemoryFactType.INSTRUCTION, "Instructions");
+        appendKeyValueGroup(builder, facts, MemoryFactType.OTHER, "Other durable facts");
         String formatted = builder.toString().stripTrailing();
         return formatted.isBlank() ? "(none)" : formatted;
     }
@@ -94,6 +95,23 @@ public class MemoryContextAssembler {
         if (!values.isBlank()) {
             builder.append("- ").append(label).append(": ").append(values).append('\n');
         }
+    }
+
+    private void appendKeyValueGroup(StringBuilder builder, List<MemoryFactView> facts,
+                                     MemoryFactType factType, String label) {
+        List<MemoryFactView> matching = facts.stream()
+                .filter(view -> view.type() == factType)
+                .toList();
+        if (matching.isEmpty()) {
+            return;
+        }
+        builder.append("- ").append(label).append(":\n");
+        matching.forEach(view -> builder
+                .append("  - ")
+                .append(view.key())
+                .append(": ")
+                .append(view.normalizedValue())
+                .append('\n'));
     }
 
     private String formatSummaries(List<String> summaries) {

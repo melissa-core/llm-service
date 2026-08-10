@@ -12,5 +12,8 @@ public enum MemoryNormalizationStrategy {
     ORGANIZATION_REF,
 
     /** Free text normalized by trimming and lower-casing. */
-    LOWERCASE_TEXT
+    LOWERCASE_TEXT,
+
+    /** Free text normalized by trimming while preserving the user's original casing. */
+    PRESERVE_TEXT
 }

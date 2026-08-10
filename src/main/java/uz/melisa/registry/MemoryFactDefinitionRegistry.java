@@ -15,10 +15,12 @@ import static uz.melisa.enums.MemoryFactType.ALLERGY;
 import static uz.melisa.enums.MemoryFactType.DIETARY;
 import static uz.melisa.enums.MemoryFactType.EXCLUSION;
 import static uz.melisa.enums.MemoryFactType.INSTRUCTION;
+import static uz.melisa.enums.MemoryFactType.OTHER;
 import static uz.melisa.enums.MemoryFactType.PREFERENCE;
 import static uz.melisa.enums.MemoryNormalizationStrategy.CODE_SET;
 import static uz.melisa.enums.MemoryNormalizationStrategy.LOWERCASE_TEXT;
 import static uz.melisa.enums.MemoryNormalizationStrategy.ORGANIZATION_REF;
+import static uz.melisa.enums.MemoryNormalizationStrategy.PRESERVE_TEXT;
 import static uz.melisa.enums.MemoryRiskClass.HIGH;
 import static uz.melisa.enums.MemoryRiskClass.ORDINARY;
 
@@ -79,9 +81,25 @@ public class MemoryFactDefinitionRegistry {
         register(map, new MemoryFactDefinition(
                 PREFERENCE, "spice_level", SINGLE, ORDINARY, CODE_SET, SPICE_LEVEL_CODES, true, false));
         register(map, new MemoryFactDefinition(
+                PREFERENCE, "cuisine", MULTI, ORDINARY, LOWERCASE_TEXT, Set.of(), true, false));
+        register(map, new MemoryFactDefinition(
+                PREFERENCE, "ingredient", MULTI, ORDINARY, LOWERCASE_TEXT, Set.of(), true, false));
+        register(map, new MemoryFactDefinition(
+                PREFERENCE, "organization", MULTI, ORDINARY, ORGANIZATION_REF, Set.of(), true, false));
+        register(map, new MemoryFactDefinition(
+                PREFERENCE, "budget", SINGLE, ORDINARY, LOWERCASE_TEXT, Set.of(), true, false));
+        register(map, new MemoryFactDefinition(
+                PREFERENCE, "goal", SINGLE, ORDINARY, LOWERCASE_TEXT, Set.of(), true, false));
+        register(map, new MemoryFactDefinition(
+                EXCLUSION, "ingredient", MULTI, ORDINARY, LOWERCASE_TEXT, Set.of(), false, false));
+        register(map, new MemoryFactDefinition(
                 EXCLUSION, "organization", MULTI, ORDINARY, ORGANIZATION_REF, Set.of(), false, false));
         register(map, new MemoryFactDefinition(
                 INSTRUCTION, "communication", SINGLE, ORDINARY, LOWERCASE_TEXT, Set.of(), true, false));
+        register(map, new MemoryFactDefinition(
+                OTHER, "name", SINGLE, ORDINARY, PRESERVE_TEXT, Set.of(), false, false));
+        register(map, new MemoryFactDefinition(
+                OTHER, "preferred_name", SINGLE, ORDINARY, PRESERVE_TEXT, Set.of(), false, false));
         return Map.copyOf(map);
     }
 

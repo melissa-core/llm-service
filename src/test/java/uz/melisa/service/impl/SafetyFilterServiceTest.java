@@ -78,6 +78,38 @@ class SafetyFilterServiceTest {
         assertThat(result).extracting(ProductDTO::getId).containsExactly(40L, 41L);
     }
 
+    @Test
+    void excludesAConfirmedOrganizationExclusionButDoesNotTreatIngredientAsOrganization() {
+        when(factService.getActiveFacts(CUSTOMER_ID)).thenReturn(List.of(
+                fact(MemoryFactType.EXCLUSION, "organization", "burger house"),
+                fact(MemoryFactType.EXCLUSION, "ingredient", "onion")
+        ));
+        ProductDTO blockedOrganization = product(50L, Set.of("BEEF"));
+        blockedOrganization.setOrganizationName("Burger House");
+        ProductDTO safeOrganization = product(51L, Set.of("CHEESE"));
+        safeOrganization.setOrganizationName("Onion");
+
+        List<ProductDTO> result = safetyFilterService.filterSafe(
+                CUSTOMER_ID,
+                List.of(blockedOrganization, safeOrganization)
+        );
+
+        assertThat(result).extracting(ProductDTO::getId).containsExactly(51L);
+    }
+
+    @Test
+    void excludesProductsTaggedWithAConfirmedIngredientExclusion() {
+        when(factService.getActiveFacts(CUSTOMER_ID)).thenReturn(List.of(
+                fact(MemoryFactType.EXCLUSION, "ingredient", "onion")
+        ));
+        ProductDTO blocked = product(60L, Set.of("ONION", "BEEF"));
+        ProductDTO safe = product(61L, Set.of("CHEESE"));
+
+        List<ProductDTO> result = safetyFilterService.filterSafe(CUSTOMER_ID, List.of(blocked, safe));
+
+        assertThat(result).extracting(ProductDTO::getId).containsExactly(61L);
+    }
+
     private CustomerMemoryFact allergy(String code) {
         return fact(MemoryFactType.ALLERGY, "allergen", code);
     }

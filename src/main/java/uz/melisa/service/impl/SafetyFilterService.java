@@ -71,9 +71,16 @@ public class SafetyFilterService {
         Set<String> forbiddenAllergens = validatedCodes(activeFacts, MemoryFactType.ALLERGY);
         Set<String> forbiddenDietaryTags = dietaryForbiddenTags(activeFacts);
         Set<String> excludedOrganizations = organizationExclusions(activeFacts);
+        Set<String> excludedIngredients = ingredientExclusions(activeFacts);
 
         List<ProductDTO> safe = products.stream()
-                .filter(product -> isSafe(product, forbiddenAllergens, forbiddenDietaryTags, excludedOrganizations))
+                .filter(product -> isSafe(
+                        product,
+                        forbiddenAllergens,
+                        forbiddenDietaryTags,
+                        excludedOrganizations,
+                        excludedIngredients
+                ))
                 .toList();
         if (safe.size() < products.size()) {
             log.info("safety filter removed {} unsafe product(s) for customerId={}", products.size() - safe.size(), customerId);
@@ -82,12 +89,15 @@ public class SafetyFilterService {
     }
 
     private boolean isSafe(ProductDTO product, Set<String> forbiddenAllergens,
-                           Set<String> forbiddenDietaryTags, Set<String> excludedOrganizations) {
+                           Set<String> forbiddenDietaryTags, Set<String> excludedOrganizations,
+                           Set<String> excludedIngredients) {
         if (!excludedOrganizations.isEmpty() && excludedOrganizations.contains(normalize(product.getOrganizationName()))) {
             return false;
         }
         for (String tag : normalizedTags(product)) {
-            if (forbiddenAllergens.contains(tag) || forbiddenDietaryTags.contains(tag)) {
+            if (forbiddenAllergens.contains(tag)
+                    || forbiddenDietaryTags.contains(tag)
+                    || excludedIngredients.contains(tag)) {
                 return false;
             }
         }
@@ -113,6 +123,16 @@ public class SafetyFilterService {
     private Set<String> organizationExclusions(List<CustomerMemoryFact> facts) {
         return facts.stream()
                 .filter(fact -> fact.getFactType() == MemoryFactType.EXCLUSION)
+                .filter(fact -> "organization".equals(fact.getFactKey()))
+                .map(fact -> normalize(fact.getNormalizedValue()))
+                .filter(value -> !value.isBlank())
+                .collect(Collectors.toSet());
+    }
+
+    private Set<String> ingredientExclusions(List<CustomerMemoryFact> facts) {
+        return facts.stream()
+                .filter(fact -> fact.getFactType() == MemoryFactType.EXCLUSION)
+                .filter(fact -> "ingredient".equals(fact.getFactKey()))
                 .map(fact -> normalize(fact.getNormalizedValue()))
                 .filter(value -> !value.isBlank())
                 .collect(Collectors.toSet());

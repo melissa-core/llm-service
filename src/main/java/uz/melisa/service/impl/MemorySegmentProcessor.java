@@ -4,13 +4,13 @@ import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import uz.melisa.domain.ChatMemory;
+import uz.melisa.domain.CustomerMemoryEpisode;
 import uz.melisa.domain.Message;
 import uz.melisa.dto.memory.ClaimedSegment;
 import uz.melisa.dto.memory.ExtractedMemory;
 import uz.melisa.enums.MemoryEpisodeSentiment;
 import uz.melisa.enums.MessageAuthorityType;
-import uz.melisa.repository.ChatMemoryRepository;
+import uz.melisa.repository.CustomerMemoryEpisodeRepository;
 import uz.melisa.repository.MessageRepository;
 
 import java.util.List;
@@ -39,7 +39,7 @@ public class MemorySegmentProcessor {
     private final MemorySegmentJobService jobService;
     private final MemoryExtractionService memoryExtractionService;
     private final MessageRepository messageRepository;
-    private final ChatMemoryRepository chatMemoryRepository;
+    private final CustomerMemoryEpisodeRepository episodeRepository;
 
     private final ScheduledExecutorService heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "memory-lease-heartbeat");
@@ -96,12 +96,48 @@ public class MemorySegmentProcessor {
                 segment.chatId(), segment.fromSeq(), segment.untilSeq());
         String userText = joinByAuthority(messages, MessageAuthorityType.USER);
         String assistantText = joinByAuthority(messages, MessageAuthorityType.MODEL);
-        String previousSummary = chatMemoryRepository.findByChatId(segment.chatId())
-                .map(ChatMemory::getSummary)
-                .orElse("");
+        String previousSummary = previousSegmentSummary(segment);
 
         return memoryExtractionService.extract(previousSummary, userText, assistantText)
                 .orElse(EMPTY_MEMORY);
+    }
+
+    /**
+     * Durable segment extraction must advance strictly in message order. The inline {@code chat_memory}
+     * summary is updated asynchronously after each turn and can therefore already contain messages that
+     * are newer than the segment being processed. Chaining from the immediately preceding durable
+     * episode makes retries deterministic and prevents future-message contamination.
+     */
+    private String previousSegmentSummary(ClaimedSegment segment) {
+        if (segment.segmentNumber() <= 1) {
+            return "";
+        }
+
+        Optional<CustomerMemoryEpisode> previous =
+                episodeRepository.findByChatIdAndSegmentNumber(segment.chatId(), segment.segmentNumber() - 1);
+        if (previous.isEmpty()) {
+            log.debug(
+                    "previous durable memory episode missing chatId={} segmentNumber={}",
+                    segment.chatId(), segment.segmentNumber() - 1
+            );
+            return "";
+        }
+
+        CustomerMemoryEpisode episode = previous.get();
+        Long summarizedUntil = episode.getSummarizedUntilMessageSeq();
+        if (summarizedUntil == null || summarizedUntil.longValue() != segment.fromSeq() - 1) {
+            log.warn(
+                    "previous durable memory episode is not contiguous chatId={} segmentNumber={} previousUntil={} currentFrom={}",
+                    segment.chatId(), segment.segmentNumber(), summarizedUntil, segment.fromSeq()
+            );
+            return "";
+        }
+
+        String summary = episode.getSummary();
+        if (summary == null || summary.isBlank() || "(no summary)".equals(summary)) {
+            return "";
+        }
+        return summary;
     }
 
     private String joinByAuthority(List<Message> messages, MessageAuthorityType authority) {

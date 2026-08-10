@@ -108,8 +108,8 @@ public final class AiSystemPrompts {
               "sentiment": "POSITIVE | NEUTRAL | NEGATIVE | MIXED | UNKNOWN",
               "facts": [
                 {
-                  "type": "ALLERGY | DIETARY | PREFERENCE | EXCLUSION | INSTRUCTION",
-                  "key": "allergen | dietary_restriction | spice_level | cuisine | ingredient | organization | budget | goal | communication",
+                  "type": "ALLERGY | DIETARY | PREFERENCE | EXCLUSION | INSTRUCTION | OTHER",
+                  "key": "allergen | dietary_restriction | spice_level | cuisine | ingredient | organization | budget | goal | communication | name | preferred_name",
                   "valueJson": {"code": "CANONICAL_CODE", "value": "free text when needed"},
                   "triggeringQuote": "exact substring from USER message",
                   "confidence": 0.0,
@@ -120,23 +120,36 @@ public final class AiSystemPrompts {
             }
 
             Summary:
-            - Keep only useful future context: preferences, constraints, dislikes, intent, unresolved questions.
+            - Produce an updated rolling customer summary from the previous summary plus the latest exchange.
+            - Preserve durable customer attributes already present in the previous summary unless the user explicitly corrects or retracts them.
+            - Durable attributes include name/preferred name, stable preferences, allergies, dietary restrictions, durable exclusions, communication preferences, and persistent goals.
+            - Do not drop a durable attribute merely because it was not mentioned in the latest exchange.
+            - Replace an old durable attribute when the user clearly corrects it.
+            - Keep useful future context such as preferences, constraints, dislikes, intent, and unresolved questions.
+            - Do not carry completed transactional details forward indefinitely.
             - Never summarize assistant facts. No markdown.
 
             Facts:
             - Only emit allowed type/key pairs.
             - triggeringQuote must be exact text from the USER message. If not possible, omit the fact.
             - Use valueJson.code for enums; valueJson.value for free text.
-            - Never guess. Do not extract orders, payments, prices, addresses, quantities, cards, OTP, phones.
+            - Never guess. Do not extract orders, payments, transaction-specific prices/order totals, addresses, quantities, cards, OTP, phones.
             - Do not extract diagnoses, medications, lab results, pregnancy, disabilities, or treatment details.
 
             Allowed:
             - ALLERGY/allergen: code PEANUT, TREE_NUT, MILK, EGG, WHEAT, GLUTEN, SOY, FISH, SHELLFISH, SESAME, etc. Only if the user explicitly names the allergen. Ignore vague or figurative allergy statements.
             - DIETARY/dietary_restriction: code VEGETARIAN, VEGAN, HALAL, KOSHER, GLUTEN_FREE, etc.
             - PREFERENCE/spice_level: code NONE, MILD, MEDIUM, HOT, EXTRA_HOT.
-            - PREFERENCE/cuisine, PREFERENCE/ingredient, PREFERENCE/organization, PREFERENCE/budget, PREFERENCE/goal: value is user preference.
-            - EXCLUSION/ingredient, EXCLUSION/organization: value is what user wants excluded.
+            - PREFERENCE/cuisine: value is a durable cuisine preference, e.g. "uzbek", "italian".
+            - PREFERENCE/ingredient: value is a durable liked ingredient, e.g. "chicken", "mushroom".
+            - PREFERENCE/organization: value is a durable preferred restaurant/organization name.
+            - PREFERENCE/budget: value is a durable general spending preference only. Do not store a one-off order price or current cart total.
+            - PREFERENCE/goal: value is a durable food/order preference goal explicitly stated by the user; never infer medical or health conditions.
+            - EXCLUSION/ingredient: value is a durable ingredient the user wants excluded.
+            - EXCLUSION/organization: value is a durable restaurant/organization the user wants excluded.
             - INSTRUCTION/communication: value is durable communication preference.
+            - OTHER/name: value is the user's explicitly stated name. Never infer it.
+            - OTHER/preferred_name: value is what the user explicitly asks Melissa to call them. Never infer it.
 
             Stability:
             - stable=true for durable statements: "I am allergic to peanuts", "I prefer Uzbek food".

@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Durable-memory invariants. Existing data is repaired before UNIQUE indexes are installed.
+      Historical rows are preserved wherever possible: duplicate active facts are SUPERSEDED,
+      duplicate PENDING candidates are EXPIRED after their evidence is merged, and legacy duplicate
+      processing jobs keep their rows but receive a suffixed idempotency key.
+    -->
+
+    <changeSet id="20260810-01" author="jahongir.zokirov" dbms="postgresql">
+        <comment>Repair duplicate ACTIVE facts before installing partial unique indexes.</comment>
+        <sql><![CDATA[
+            -- Same exact ACTIVE fact more than once: keep the most recently confirmed row.
+            WITH ranked AS (
+                SELECT id,
+                       row_number() OVER (
+                           PARTITION BY customer_id, fact_type, fact_key, normalized_value
+                           ORDER BY last_confirmed_at DESC NULLS LAST,
+                                    updated_at DESC NULLS LAST,
+                                    id DESC
+                       ) AS rn
+                FROM customer_memory_fact
+                WHERE status = 'ACTIVE'
+            )
+            UPDATE customer_memory_fact f
+               SET status = 'SUPERSEDED'
+              FROM ranked r
+             WHERE f.id = r.id
+               AND r.rn > 1;
+
+            -- SINGLE-valued facts must have only one ACTIVE value for a key.
+            WITH ranked AS (
+                SELECT id,
+                       row_number() OVER (
+                           PARTITION BY customer_id, fact_type, fact_key
+                           ORDER BY last_confirmed_at DESC NULLS LAST,
+                                    updated_at DESC NULLS LAST,
+                                    id DESC
+                       ) AS rn
+                FROM customer_memory_fact
+                WHERE status = 'ACTIVE'
+                  AND cardinality = 'SINGLE'
+            )
+            UPDATE customer_memory_fact f
+               SET status = 'SUPERSEDED'
+              FROM ranked r
+             WHERE f.id = r.id
+               AND r.rn > 1;
+        ]]></sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="20260810-02" author="jahongir.zokirov" dbms="postgresql">
+        <comment>Merge duplicate PENDING candidates and collapse duplicate evidence per candidate/chat.</comment>
+        <sql><![CDATA[
+            -- Aggregate duplicate candidate state into the oldest PENDING row.
+            WITH duplicate_groups AS (
+                SELECT customer_id,
+                       fact_type,
+                       fact_key,
+                       normalized_value,
+                       min(id) AS keep_id,
+                       min(first_seen_at) AS first_seen_at,
+                       max(last_seen_at) AS last_seen_at,
+                       max(expires_at) AS expires_at,
+                       max(max_confidence) AS max_confidence
+                FROM customer_memory_candidate
+                WHERE status = 'PENDING'
+                GROUP BY customer_id, fact_type, fact_key, normalized_value
+                HAVING count(*) > 1
+            )
+            UPDATE customer_memory_candidate c
+               SET first_seen_at = g.first_seen_at,
+                   last_seen_at = g.last_seen_at,
+                   expires_at = g.expires_at,
+                   max_confidence = g.max_confidence
+              FROM duplicate_groups g
+             WHERE c.id = g.keep_id;
+
+            -- Move evidence from duplicate candidates onto the canonical PENDING candidate.
+            WITH duplicate_groups AS (
+                SELECT customer_id,
+                       fact_type,
+                       fact_key,
+                       normalized_value,
+                       min(id) AS keep_id
+                FROM customer_memory_candidate
+                WHERE status = 'PENDING'
+                GROUP BY customer_id, fact_type, fact_key, normalized_value
+                HAVING count(*) > 1
+            ), duplicate_candidates AS (
+                SELECT c.id AS duplicate_id, g.keep_id
+                FROM customer_memory_candidate c
+                JOIN duplicate_groups g
+                  ON g.customer_id = c.customer_id
+                 AND g.fact_type = c.fact_type
+                 AND g.fact_key = c.fact_key
+                 AND g.normalized_value = c.normalized_value
+                WHERE c.status = 'PENDING'
+                  AND c.id <> g.keep_id
+            )
+            UPDATE customer_memory_candidate_evidence e
+               SET candidate_id = d.keep_id
+              FROM duplicate_candidates d
+             WHERE e.candidate_id = d.duplicate_id;
+
+            -- Merge duplicated evidence values into the oldest evidence row.
+            WITH evidence_groups AS (
+                SELECT candidate_id,
+                       chat_id,
+                       min(id) AS keep_id,
+                       max(expires_at) AS expires_at,
+                       max(confidence) AS confidence,
+                       max(episode_id) AS episode_id
+                FROM customer_memory_candidate_evidence
+                GROUP BY candidate_id, chat_id
+                HAVING count(*) > 1
+            )
+            UPDATE customer_memory_candidate_evidence e
+               SET expires_at = g.expires_at,
+                   confidence = g.confidence,
+                   episode_id = coalesce(g.episode_id, e.episode_id)
+              FROM evidence_groups g
+             WHERE e.id = g.keep_id;
+
+            WITH ranked AS (
+                SELECT id,
+                       row_number() OVER (
+                           PARTITION BY candidate_id, chat_id
+                           ORDER BY id ASC
+                       ) AS rn
+                FROM customer_memory_candidate_evidence
+            )
+            DELETE FROM customer_memory_candidate_evidence e
+             USING ranked r
+             WHERE e.id = r.id
+               AND r.rn > 1;
+
+            -- Preserve duplicate candidate rows as history, but only one remains PENDING.
+            WITH ranked AS (
+                SELECT id,
+                       row_number() OVER (
+                           PARTITION BY customer_id, fact_type, fact_key, normalized_value
+                           ORDER BY id ASC
+                       ) AS rn
+                FROM customer_memory_candidate
+                WHERE status = 'PENDING'
+            )
+            UPDATE customer_memory_candidate c
+               SET status = 'EXPIRED'
+              FROM ranked r
+             WHERE c.id = r.id
+               AND r.rn > 1;
+        ]]></sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="20260810-03" author="jahongir.zokirov" dbms="postgresql">
+        <comment>Collapse duplicate durable episodes to one row per chat/segment and repair soft evidence references.</comment>
+        <sql><![CDATA[
+            -- Keep the newest episode for a duplicated chat/segment.
+            WITH ranked AS (
+                SELECT id,
+                       first_value(id) OVER (
+                           PARTITION BY chat_id, segment_number
+                           ORDER BY id DESC
+                       ) AS keep_id,
+                       row_number() OVER (
+                           PARTITION BY chat_id, segment_number
+                           ORDER BY id DESC
+                       ) AS rn
+                FROM customer_memory_episode
+            )
+            UPDATE customer_memory_candidate_evidence e
+               SET episode_id = r.keep_id
+              FROM ranked r
+             WHERE r.rn > 1
+               AND e.episode_id = r.id;
+
+            WITH ranked AS (
+                SELECT id,
+                       row_number() OVER (
+                           PARTITION BY chat_id, segment_number
+                           ORDER BY id DESC
+                       ) AS rn
+                FROM customer_memory_episode
+            )
+            DELETE FROM customer_memory_episode e
+             USING ranked r
+             WHERE e.id = r.id
+               AND r.rn > 1;
+        ]]></sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="20260810-04" author="jahongir.zokirov" dbms="postgresql">
+        <comment>Preserve legacy duplicate processing jobs while making their idempotency keys distinct.</comment>
+        <sql><![CDATA[
+            WITH ranked AS (
+                SELECT j.id,
+                       row_number() OVER (
+                           PARTITION BY j.idempotency_key
+                           ORDER BY CASE
+                                      WHEN EXISTS (
+                                          SELECT 1
+                                          FROM customer_memory_chat_state s
+                                          WHERE s.active_job_id = j.id
+                                      ) THEN 0
+                                      ELSE 1
+                                    END,
+                                    j.id DESC
+                       ) AS rn
+                FROM customer_memory_processing_job j
+            )
+            UPDATE customer_memory_processing_job j
+               SET idempotency_key = left(j.idempotency_key, 250)
+                                     || ':legacy-duplicate:' || j.id
+              FROM ranked r
+             WHERE j.id = r.id
+               AND r.rn > 1;
+        ]]></sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="20260810-05" author="jahongir.zokirov" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists indexName="uq_cm_fact_active_value" tableName="customer_memory_fact"/></not>
+        </preConditions>
+        <comment>At most one ACTIVE row for the same normalized fact value.</comment>
+        <sql>CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uq_cm_fact_active_value ON customer_memory_fact (customer_id, fact_type, fact_key, normalized_value) WHERE status = 'ACTIVE';</sql>
+        <rollback>DROP INDEX IF EXISTS uq_cm_fact_active_value;</rollback>
+    </changeSet>
+
+    <changeSet id="20260810-06" author="jahongir.zokirov" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists indexName="uq_cm_fact_active_single_key" tableName="customer_memory_fact"/></not>
+        </preConditions>
+        <comment>SINGLE-valued fact definitions may have only one ACTIVE value per customer/type/key.</comment>
+        <sql>CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uq_cm_fact_active_single_key ON customer_memory_fact (customer_id, fact_type, fact_key) WHERE status = 'ACTIVE' AND cardinality = 'SINGLE';</sql>
+        <rollback>DROP INDEX IF EXISTS uq_cm_fact_active_single_key;</rollback>
+    </changeSet>
+
+    <changeSet id="20260810-07" author="jahongir.zokirov" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists indexName="uq_cm_candidate_pending_value" tableName="customer_memory_candidate"/></not>
+        </preConditions>
+        <comment>Only one live PENDING candidate may accumulate evidence for the same normalized value.</comment>
+        <sql>CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uq_cm_candidate_pending_value ON customer_memory_candidate (customer_id, fact_type, fact_key, normalized_value) WHERE status = 'PENDING';</sql>
+        <rollback>DROP INDEX IF EXISTS uq_cm_candidate_pending_value;</rollback>
+    </changeSet>
+
+    <changeSet id="20260810-08" author="jahongir.zokirov" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists indexName="uq_cm_candidate_evidence_chat" tableName="customer_memory_candidate_evidence"/></not>
+        </preConditions>
+        <comment>A candidate can have at most one evidence row from a given chat; repeated mentions refresh it.</comment>
+        <sql>CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uq_cm_candidate_evidence_chat ON customer_memory_candidate_evidence (candidate_id, chat_id);</sql>
+        <rollback>DROP INDEX IF EXISTS uq_cm_candidate_evidence_chat;</rollback>
+    </changeSet>
+
+    <changeSet id="20260810-09" author="jahongir.zokirov" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists indexName="uq_cm_episode_chat_segment" tableName="customer_memory_episode"/></not>
+        </preConditions>
+        <comment>Each chat segment has exactly one durable L2 episode.</comment>
+        <sql>CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uq_cm_episode_chat_segment ON customer_memory_episode (chat_id, segment_number);</sql>
+        <rollback>DROP INDEX IF EXISTS uq_cm_episode_chat_segment;</rollback>
+    </changeSet>
+
+    <changeSet id="20260810-10" author="jahongir.zokirov" runInTransaction="false" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists indexName="uq_cm_proc_job_idempotency_key" tableName="customer_memory_processing_job"/></not>
+        </preConditions>
+        <comment>Processing-job idempotency keys are database-enforced.</comment>
+        <sql>CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uq_cm_proc_job_idempotency_key ON customer_memory_processing_job (idempotency_key);</sql>
+        <rollback>DROP INDEX IF EXISTS uq_cm_proc_job_idempotency_key;</rollback>
+    </changeSet>
+
+</databaseChangeLog>

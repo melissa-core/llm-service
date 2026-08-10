@@ -104,11 +104,12 @@ public class MemoryExtractionService {
         }
 
         MemoryFactType factType = parseFactType(fact.type());
-        if (factType == null || fact.key() == null) {
+        String factKey = normalizeFactKey(fact.key());
+        if (factType == null || factKey == null) {
             return Optional.empty();
         }
 
-        MemoryFactDefinition definition = lookupDefinition(factType, fact.key());
+        MemoryFactDefinition definition = lookupDefinition(factType, factKey);
         if (definition == null) {
             return Optional.empty();   // unknown key / transactional / non-registry data
         }
@@ -131,6 +132,12 @@ public class MemoryExtractionService {
             // A stable, quote-verified, valid-code safety-critical fact is a clear declaration by
             // construction. Never let a missing/advisory sourceHint silently drop a real allergy/dietary;
             // genuine uncertainty is already handled (transient -> !stable drop, unknown code -> drop).
+            sourceType = MemoryFactSourceType.EXPLICIT_CUSTOMER_STATEMENT;
+        }
+        if (isExplicitIdentityFact(definition) && sourceType == MemoryFactSourceType.REPEATED_INFERENCE) {
+            // name/preferred_name are registry-defined as explicit-only identity anchors. The model's
+            // sourceHint is advisory, so a valid, stable, exact-quote extraction must not be lost merely
+            // because sourceHint was omitted or mislabeled as REPEATED_INFERENCE.
             sourceType = MemoryFactSourceType.EXPLICIT_CUSTOMER_STATEMENT;
         }
 
@@ -162,7 +169,8 @@ public class MemoryExtractionService {
         return switch (definition.normalizationStrategy()) {
             case CODE_SET -> normalizeCode(definition, fact);
             case LOWERCASE_TEXT -> normalizeText(fact);
-            case ORGANIZATION_REF -> Optional.empty();   // authoritative org resolution is downstream
+            case PRESERVE_TEXT -> normalizePreservedText(fact);
+            case ORGANIZATION_REF -> normalizeOrganizationReference(fact);
         };
     }
 
@@ -190,6 +198,36 @@ public class MemoryExtractionService {
             normalized = normalized.substring(0, MAX_NORMALIZED_VALUE_LENGTH);
         }
         return Optional.of(normalized);
+    }
+
+    private Optional<String> normalizePreservedText(ExtractedFactDTO fact) {
+        String value = stringField(fact.valueJson(), VALUE_FIELD);
+        if (value == null || value.isBlank()) {
+            return Optional.empty();
+        }
+        String normalized = value.trim();
+        if (normalized.length() > MAX_NORMALIZED_VALUE_LENGTH) {
+            normalized = normalized.substring(0, MAX_NORMALIZED_VALUE_LENGTH);
+        }
+        return Optional.of(normalized);
+    }
+
+    /**
+     * Organization ids are not currently present in the memory-extraction contract, so persist the
+     * explicitly quoted organization name in a deterministic normalized form. This matches the
+     * current ProductDTO safety/recommendation model, which also exposes organizationName rather than
+     * an authoritative organization id. Once ids are available end-to-end this strategy can resolve
+     * and persist canonical ids without changing the fact type/key contract.
+     */
+    private Optional<String> normalizeOrganizationReference(ExtractedFactDTO fact) {
+        return normalizeText(fact);
+    }
+
+    private boolean isExplicitIdentityFact(MemoryFactDefinition definition) {
+        if (definition.factType() != MemoryFactType.OTHER) {
+            return false;
+        }
+        return "name".equals(definition.factKey()) || "preferred_name".equals(definition.factKey());
     }
 
     private MemoryFactSourceType resolveSourceType(ExtractedFactDTO fact) {
@@ -228,6 +266,13 @@ public class MemoryExtractionService {
         }
         String lower = quote.toLowerCase(Locale.ROOT);
         return lower.contains("remember") || lower.contains("don't forget") || lower.contains("do not forget");
+    }
+
+    private String normalizeFactKey(String factKey) {
+        if (factKey == null || factKey.isBlank()) {
+            return null;
+        }
+        return factKey.trim().toLowerCase(Locale.ROOT);
     }
 
     private MemoryFactType parseFactType(String type) {

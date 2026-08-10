@@ -10,5 +10,6 @@
          On live, 001 is already recorded and 002 changesets MARK_RAN; include order only affects fresh DBs. -->
     <include file="changes/002-baseline-tables.xml" relativeToChangelogFile="true"/>
     <include file="changes/001-add-indexes.xml" relativeToChangelogFile="true"/>
+    <include file="changes/004-memory-uniqueness.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
